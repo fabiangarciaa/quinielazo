@@ -13,7 +13,7 @@ build/
 !**/.env.example
 
 # Prisma migrations generadas localmente
-**/prisma/migrations/
+
 
 # Logs
 *.log
