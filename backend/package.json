@@ -2,15 +2,17 @@
   "name": "quinielazo-api",
   "version": "1.0.0",
   "description": "API para gestión de quinielas deportivas",
-  "scripts": {
-    "build": "nest build",
-    "start": "node dist/main",
-    "start:dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
-    "db:migrate": "prisma migrate dev",
-    "db:seed": "ts-node prisma/seed.ts",
-    "db:studio": "prisma studio"
-  },
+"scripts": {
+  "prebuild": "rimraf dist",
+  "build": "nest build",
+  "prestart": "npm run build",
+  "start": "node dist/main",
+  "start:dev": "nest start --watch",
+  "start:debug": "nest start --debug --watch",
+  "db:migrate": "prisma migrate dev",
+  "db:seed": "ts-node prisma/seed.ts",
+  "db:studio": "prisma studio"
+},
   "dependencies": {
     "@nestjs/common": "^10.3.0",
     "@nestjs/core": "^10.3.0",
