@@ -1,11 +1,12 @@
 // src/pages/AdminPage.tsx
-import { useState } from 'react';
+import { useState, useEffect  } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tournamentsApi, phasesApi } from '../lib/api';
 import toast from 'react-hot-toast';
 import { Settings, Plus, Save, Shield, Calendar, BarChart2, List } from 'lucide-react';
 import clsx from 'clsx';
+
 
 const PHASE_TYPES = [
   'GROUP_STAGE','ROUND_OF_32','ROUND_OF_16','QUARTER_FINAL',
@@ -42,16 +43,19 @@ export function AdminPage() {
     enabled: !!tournamentId,
   });
 
-  const { data: rules = [] } = useQuery({
+const { data: rules = [], refetch: refetchRules } = useQuery({
     queryKey: ['scoring-rules', tournamentId],
     queryFn: () => tournamentsApi.getScoringRules(tournamentId!).then(r => r.data),
     enabled: !!tournamentId,
-    onSuccess: (data: any[]) => {
-      const map: Record<string, number> = {};
-      data.forEach(r => { map[r.id] = r.points; });
-      setLocalRules(map);
-    },
   });
+
+  useEffect(() => {
+    if ((rules as any[]).length > 0) {
+      const map: Record<string, number> = {};
+      (rules as any[]).forEach((r: any) => { map[r.id] = r.points; });
+      setLocalRules(map);
+    }
+  }, [rules]);
 
   const { data: phases = [] } = useQuery({
     queryKey: ['phases', tournamentId],
