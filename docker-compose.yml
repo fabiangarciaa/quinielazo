@@ -1,0 +1,59 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: quinielazo_db
+    environment:
+      POSTGRES_USER: quinielazo
+      POSTGRES_PASSWORD: quinielazo_pass
+      POSTGRES_DB: quinielazo
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U quinielazo']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: quinielazo_api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://quinielazo:quinielazo_pass@postgres:5432/quinielazo
+      JWT_SECRET: super_secret_jwt_key_change_in_production
+      JWT_EXPIRES_IN: 7d
+      PORT: 3000
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: npm run start:dev
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: quinielazo_web
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: http://localhost:3000/api
+      VITE_WS_URL: http://localhost:3000
+    ports:
+      - '5173:5173'
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev -- --host
+
+volumes:
+  pgdata:

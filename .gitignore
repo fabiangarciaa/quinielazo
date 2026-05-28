@@ -1,0 +1,27 @@
+# Dependencias
+node_modules/
+**/node_modules/
+
+# Build
+dist/
+**/dist/
+build/
+
+# Variables de entorno — NUNCA subir al repo
+.env
+**/.env
+!**/.env.example
+
+# Prisma migrations generadas localmente
+**/prisma/migrations/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
