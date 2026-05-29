@@ -15,6 +15,9 @@ import { RankingPage } from './pages/RankingPage';
 import { SimulatorPage } from './pages/SimulatorPage';
 import { AdminPage } from './pages/AdminPage';
 import { GroupsPage } from './pages/GroupsPage';
+import { ProfilePage } from './pages/ProfilePage';
+import { RulesPage } from './pages/RulesPage';
+import { PointsPage } from './pages/PointsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false } },
@@ -46,6 +49,9 @@ export default function App() {
             <Route path="tournaments/:id/simulator" element={<SimulatorPage />} />
             <Route path="tournaments/:id/admin" element={<AdminPage />} />
             <Route path="tournaments/:id/groups" element={<GroupsPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="tournaments/:id/rules" element={<RulesPage />} />
+            <Route path="tournaments/:id/points" element={<PointsPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

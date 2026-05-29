@@ -49,6 +49,7 @@ export function LoginPage() {
         {/* Card */}
         <div className="bg-white rounded-2xl p-8 shadow-2xl">
           {/* Tabs */}
+          {/* Tabs — oculto temporalmente hasta implementar flujo completo de registro
           <div className="flex rounded-xl bg-gray-100 p-1 mb-6">
             {(['login', 'register'] as const).map(m => (
               <button key={m} onClick={() => setMode(m)}
@@ -57,6 +58,7 @@ export function LoginPage() {
               </button>
             ))}
           </div>
+          */}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'register' && (
@@ -68,10 +70,10 @@ export function LoginPage() {
               </div>
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input type="email" required value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Usuario</label>
+              <input type="text" required value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                placeholder="tu@email.com" />
+                placeholder="usuario o correo" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { api } from '../lib/api';
 
-interface User { id: string; name: string; email: string; role: string; }
+interface User { id: string; name: string; email: string; username: string | null; role: string; }
 
 interface AuthState {
   token: string | null;
@@ -18,7 +18,7 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       user: null,
       login: async (email, password) => {
-        const { data } = await api.post('/auth/login', { email, password });
+        const { data } = await api.post('/auth/login', { identifier: email, password });
         set({ token: data.access_token, user: data.user });
         api.defaults.headers.common['Authorization'] = `Bearer ${data.access_token}`;
       },

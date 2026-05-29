@@ -120,3 +120,10 @@ export const resultsApi = {
   getByTournament: (tournamentId: string) => api.get(`/results?tournamentId=${tournamentId}`),
   getImpact: (resultId: string) => api.get(`/results/${resultId}/impact`),
 };
+
+export const usersApi = {
+  getOne: (id: string) => api.get(`/users/${id}`),
+  assignUsername: (id: string, username: string) => api.patch(`/users/${id}/username`, { username }),
+  updateProfile: (id: string, data: { name?: string; password?: string }) => api.patch(`/users/${id}/profile`, data),
+  updateAlias: (id: string, participantId: string, alias: string) => api.patch(`/users/${id}/alias`, { participantId, alias }),
+};

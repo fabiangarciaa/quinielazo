@@ -122,7 +122,7 @@ async function main() {
   await prisma.user.deleteMany({});
   console.log('Limpio');
 
-  await prisma.user.create({ data: { name: 'Administrador', email: 'admin@quinielazo.mx', passwordHash: await bcrypt.hash('admin123', 10), role: 'ADMIN' } });
+  await prisma.user.create({ data: { name: 'Administrador', email: 'admin@quinielazo.mx', username: 'quinielazo.admin', passwordHash: await bcrypt.hash('admin123', 10), role: 'ADMIN' } });
 
   const mundial = await prisma.tournament.create({
     data: { name: 'Mundial 2026', type: TournamentType.WORLD_CUP, season: '2026', teamCount: 48, participantCount: 6, competitionSystem: 'Fase de grupos + Eliminacion directa', status: TournamentStatus.SETUP, scoringConfig: {} },

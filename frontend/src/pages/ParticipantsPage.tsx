@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { participantsApi } from '../lib/api';
+import { participantsApi, usersApi } from '../lib/api';
 import toast from 'react-hot-toast';
 import { Plus, Trash2, Users, Trophy, Key, Copy, Check, Mail } from 'lucide-react';
 import clsx from 'clsx';
@@ -16,6 +16,7 @@ export function ParticipantsPage() {
     name: '',
     alias: '',
     createUser: true,
+    username: '',
     email: '',
     password: '',
   });
@@ -27,11 +28,18 @@ export function ParticipantsPage() {
   });
 
   const createMut = useMutation({
-    mutationFn: (data: any) => participantsApi.create({ ...data, tournamentId }),
+    mutationFn: async (data: any) => {
+      const res = await participantsApi.create({ ...data, tournamentId });
+      // Si se creó usuario y tiene username, asignarlo
+      if (data.createUser && data.username && res.data.userId) {
+        await usersApi.assignUsername(res.data.userId, data.username);
+      }
+      return res;
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['participants', tournamentId] });
       setShowForm(false);
-      setForm({ name: '', alias: '', createUser: true, email: '', password: '' });
+      setForm({ name: '', alias: '', createUser: true, username: '', email: '', password: '' });
       toast.success('Participante agregado');
     },
     onError: (e: any) => toast.error(e.response?.data?.message || 'Error'),
@@ -216,6 +224,15 @@ export function ParticipantsPage() {
 
                 {form.createUser && (
                   <>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Usuario *</label>
+                      <input type="text" value={form.username}
+                        onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+                        required={form.createUser}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        placeholder="ej: fabian.garcia" />
+                      <p className="text-xs text-gray-400 mt-1">El participante usará esto para iniciar sesión</p>
+                    </div>
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Email *</label>
                       <input type="email" value={form.email}

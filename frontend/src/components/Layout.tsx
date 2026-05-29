@@ -4,7 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { tournamentsApi, participantsApi } from '../lib/api';
 import {
   Trophy, LayoutDashboard, Users, Shield, Shuffle, Calendar,
-  BarChart2, Zap, Settings, LogOut, Menu, X, Table2
+  BarChart2, Zap, Settings, LogOut, Menu, X, Table2, UserCircle,
+  BookOpen, Coins
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import clsx from 'clsx';
@@ -15,6 +16,11 @@ const VIEWER_NAV = (id: string) => [
   { to: `/tournaments/${id}/matches`, icon: Calendar, label: 'Partidos' },
   { to: `/tournaments/${id}/ranking`, icon: BarChart2, label: 'Ranking' },
   { to: `/tournaments/${id}/simulator`, icon: Zap, label: 'Simulador' },
+  { to: `/tournaments/${id}/rules`, icon: BookOpen, label: 'Reglas' },
+];
+
+const PARTICIPANT_NAV = (id: string) => [
+  { to: `/tournaments/${id}/points`, icon: Coins, label: 'Mis Puntos' },
 ];
 
 const ADMIN_NAV = (id: string) => [
@@ -32,40 +38,37 @@ export function Layout() {
   const isAdmin = user?.role === 'ADMIN';
 
   const { data: allTournaments } = useQuery({
-  queryKey: ['tournaments'],
-  queryFn: () => tournamentsApi.getAll().then(r => r.data),
-  enabled: isAdmin,
-});
+    queryKey: ['tournaments'],
+    queryFn: () => tournamentsApi.getAll().then(r => r.data),
+    enabled: isAdmin,
+  });
 
-const { data: myParticipations } = useQuery({
-  queryKey: ['my-participations', user?.id],
-  queryFn: () => participantsApi.getByUser(user!.id).then(r => r.data),
-  enabled: !isAdmin && !!user?.id,
-});
+  const { data: myParticipations } = useQuery({
+    queryKey: ['my-participations', user?.id],
+    queryFn: () => participantsApi.getByUser(user!.id).then(r => r.data),
+    enabled: !isAdmin && !!user?.id,
+  });
 
-const tournaments = isAdmin
-  ? allTournaments
-  : myParticipations?.map((p: any) => p.tournament);
+  const tournaments = isAdmin
+    ? allTournaments
+    : myParticipations?.map((p: any) => p.tournament);
 
-useEffect(() => {
-  if (isAdmin || !tournaments?.length) return;
-  const currentValid = tournaments.find((t: any) => t.id === activeTournamentId);
-  if (!currentValid) {
-    const first = tournaments.find((t: any) => t.status === 'IN_PROGRESS') || tournaments[0];
-    if (first) setActiveTournament(first.id);
-  }
-}, [tournaments, activeTournamentId, isAdmin]);
+  useEffect(() => {
+    if (isAdmin || !tournaments?.length) return;
+    const currentValid = tournaments.find((t: any) => t.id === activeTournamentId);
+    if (!currentValid) {
+      const first = tournaments.find((t: any) => t.status === 'IN_PROGRESS') || tournaments[0];
+      if (first) setActiveTournament(first.id);
+    }
+  }, [tournaments, activeTournamentId, isAdmin]);
 
-const activeTournament = tournaments?.find((t: any) => t.id === activeTournamentId);
-
+  const activeTournament = tournaments?.find((t: any) => t.id === activeTournamentId);
   const handleLogout = () => { logout(); navigate('/login'); };
-
-
 
   const tournamentNavItems = activeTournamentId ? [
     ...VIEWER_NAV(activeTournamentId),
-    ...(isAdmin ? ADMIN_NAV(activeTournamentId) : []),
-  ] : [];
+    ...(isAdmin ? ADMIN_NAV(activeTournamentId) : PARTICIPANT_NAV(activeTournamentId)),
+    ] : [];
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-gray-900 text-white">
@@ -143,6 +146,16 @@ const activeTournament = tournaments?.find((t: any) => t.id === activeTournament
 
       {/* Footer usuario */}
       <div className="border-t border-gray-700 p-3">
+        {!isAdmin && (
+          <NavLink to="/profile" onClick={() => setSidebarOpen(false)}
+            className={({ isActive }) => clsx(
+              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors mb-2',
+              isActive ? 'bg-amber-500 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+            )}>
+            <UserCircle size={18} className="shrink-0" />
+            <span>Mi Perfil</span>
+          </NavLink>
+        )}
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center text-sm font-bold shrink-0">
             {user?.name?.[0]?.toUpperCase()}
