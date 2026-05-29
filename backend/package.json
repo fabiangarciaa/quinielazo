@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "API para gestión de quinielas deportivas",
 "scripts": {
-  "postinstall": "npm run build",
   "build": "nest build",
   "prestart": "npm run build",
   "start": "node dist/main",
