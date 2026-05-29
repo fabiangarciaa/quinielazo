@@ -11,9 +11,13 @@ export class ParticipantsController {
   constructor(private svc: ParticipantsService) {}
 
   @Get()
-  findAll(@Query('tournamentId') tid: string) {
-    return this.svc.findByTournament(tid);
-  }
+findAll(
+  @Query('tournamentId') tid: string,
+  @Query('userId') userId: string,
+) {
+  if (userId) return this.svc.findByUser(userId);
+  return this.svc.findByTournament(tid);
+}
 
   @Get(':id')
   findOne(@Param('id') id: string) {

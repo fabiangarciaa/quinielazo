@@ -32,6 +32,7 @@ export const tournamentsApi = {
 
 export const participantsApi = {
   getByTournament: (tournamentId: string) => api.get(`/participants?tournamentId=${tournamentId}`),
+  getByUser: (userId: string) => api.get(`/participants?userId=${userId}`),
   getOne: (id: string) => api.get(`/participants/${id}`),
   getScores: (id: string) => api.get(`/participants/${id}/scores`),
   create: (data: any) => api.post('/participants', data),
