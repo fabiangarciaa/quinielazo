@@ -35,10 +35,10 @@ export function SimulatorPage() {
   const aliveTeams = teams?.filter((t: any) => t.status === 'ACTIVE') || [];
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-3 md:p-6 max-w-5xl mx-auto space-y-4 md:space-y-6">
       <div className="flex items-center gap-3 mb-2">
         <Zap className="text-amber-500" size={24} />
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Simulador de escenarios</h1>
+        <h1 className="text-xl md:text-2xl font-bold text-gray-800 dark:text-gray-100">Simulador de escenarios</h1>
       </div>
 
       {/* Escenarios por participante */}
@@ -55,7 +55,7 @@ export function SimulatorPage() {
       </section>
 
       {/* Simulador "¿Qué pasa si X gana?" */}
-      <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5">
+      <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-4 md:p-5">
         <h2 className="text-base font-semibold text-gray-700 dark:text-gray-300 mb-1">
           ¿Qué pasa si un equipo se corona campeón?
         </h2>
