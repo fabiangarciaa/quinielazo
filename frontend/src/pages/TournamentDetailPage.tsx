@@ -2,6 +2,7 @@
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tournamentsApi } from '../lib/api';
+import { useAuthStore } from '../store/auth.store';
 import toast from 'react-hot-toast';
 import { Users, Shield, Shuffle, Calendar, BarChart2, Zap, ChevronRight, Settings } from 'lucide-react';
 import clsx from 'clsx';
@@ -15,6 +16,8 @@ const STATUS_FLOW: Record<string, { next: string; label: string }> = {
 export function TournamentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const qc = useQueryClient();
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'ADMIN';
 
   const { data: t, isLoading } = useQuery({
     queryKey: ['tournament', id],
@@ -64,12 +67,12 @@ export function TournamentDetailPage() {
           </div>
           <div className="shrink-0 text-right">
             <StatusBadge status={t.status} />
-            {next && (
+            {next && isAdmin && (
               <button onClick={() => statusMut.mutate(next.next)}
                 className="mt-2 block text-xs text-blue-600 hover:text-blue-800 underline">
-                → {next.label}
-              </button>
-            )}
+                   → {next.label}
+                </button>
+)}
           </div>
         </div>
       </div>

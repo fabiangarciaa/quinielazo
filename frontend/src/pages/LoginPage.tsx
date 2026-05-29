@@ -85,9 +85,11 @@ export function LoginPage() {
             </button>
           </form>
 
+        {window.location.hostname === 'localhost' && (
           <p className="text-center text-xs text-gray-400 mt-4">
             Acceso demo: admin@quinielazo.mx / admin123
           </p>
+      )}
         </div>
       </div>
     </div>
