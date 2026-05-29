@@ -1,12 +1,12 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore, useTournamentStore } from '../store/auth.store';
 import { useQuery } from '@tanstack/react-query';
-import { tournamentsApi } from '../lib/api';
+import { tournamentsApi, participantsApi } from '../lib/api';
 import {
   Trophy, LayoutDashboard, Users, Shield, Shuffle, Calendar,
   BarChart2, Zap, Settings, LogOut, Menu, X, Table2
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import clsx from 'clsx';
 
 const VIEWER_NAV = (id: string) => [
@@ -31,19 +31,36 @@ export function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isAdmin = user?.role === 'ADMIN';
 
-  const { data: tournaments } = useQuery({
-    queryKey: ['tournaments'],
-    queryFn: () => tournamentsApi.getAll().then(r => r.data),
-  });
+  const { data: allTournaments } = useQuery({
+  queryKey: ['tournaments'],
+  queryFn: () => tournamentsApi.getAll().then(r => r.data),
+  enabled: isAdmin,
+});
 
-  const activeTournament = tournaments?.find((t: any) => t.id === activeTournamentId);
+const { data: myParticipations } = useQuery({
+  queryKey: ['my-participations', user?.id],
+  queryFn: () => participantsApi.getByUser(user!.id).then(r => r.data),
+  enabled: !isAdmin && !!user?.id,
+});
 
-  const handleLogout = () => { logout(); navigate('/login'); };
+const tournaments = isAdmin
+  ? allTournaments
+  : myParticipations?.map((p: any) => p.tournament);
 
-  if (!isAdmin && tournaments?.length > 0 && !activeTournamentId) {
+useEffect(() => {
+  if (isAdmin || !tournaments?.length) return;
+  const currentValid = tournaments.find((t: any) => t.id === activeTournamentId);
+  if (!currentValid) {
     const first = tournaments.find((t: any) => t.status === 'IN_PROGRESS') || tournaments[0];
     if (first) setActiveTournament(first.id);
   }
+}, [tournaments, activeTournamentId, isAdmin]);
+
+const activeTournament = tournaments?.find((t: any) => t.id === activeTournamentId);
+
+  const handleLogout = () => { logout(); navigate('/login'); };
+
+
 
   const tournamentNavItems = activeTournamentId ? [
     ...VIEWER_NAV(activeTournamentId),

@@ -19,6 +19,17 @@ export class ParticipantsService {
     });
   }
 
+  findByUser(userId: string) {
+  return this.prisma.participant.findMany({
+    where: { userId },
+    include: {
+      tournament: true,
+      teams: { orderBy: { strength: 'desc' } },
+      user: { select: { id: true, name: true, email: true } },
+    },
+  });
+}
+
   findOne(id: string) {
     return this.prisma.participant.findUniqueOrThrow({
       where: { id },
