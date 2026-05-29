@@ -14,6 +14,7 @@ const EVENT_LABELS: Record<string, { label: string; icon: string }> = {
   REACH_FINAL:          { label: 'Llegó a la final',               icon: '🌟' },
   CHAMPION:             { label: '¡Campeón!',                      icon: '🏆' },
   RUNNER_UP:            { label: 'Subcampeón',                     icon: '🥈' },
+  THIRD_PLACE:          { label: 'Tercer lugar',                   icon: '🥉' },
   CLEAN_SHEET:          { label: 'Portería en cero',               icon: '🧤' },
   THRASHING_WIN:        { label: 'Goleada',                        icon: '💥' },
   SUPER_LEADERSHIP:     { label: 'Superliderato',                  icon: '👑' },

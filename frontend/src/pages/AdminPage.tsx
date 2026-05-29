@@ -23,6 +23,7 @@ const EVENT_LABELS: Record<string, string> = {
   ADVANCE_ROUND_OF_32:'Clasificar a 16avos', ADVANCE_ROUND_OF_16:'Clasificar a octavos',
   ADVANCE_QUARTER:'Clasificar a cuartos', ADVANCE_SEMI:'Clasificar a semifinal',
   REACH_FINAL:'Llegar a la final', CHAMPION:'Campeón', RUNNER_UP:'Subcampeón',
+  THIRD_PLACE:'Tercer lugar',
   CLEAN_SHEET:'Portería en cero', THRASHING_WIN:'Goleada 3+ goles',
   SUPER_LEADERSHIP:'Superliderato', LAST_IN_GROUP:'Último de grupo', EARLY_ELIMINATION:'Eliminación temprana',
 };

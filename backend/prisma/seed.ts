@@ -64,6 +64,7 @@ const SCORING_RULES_MUNDIAL = [
   { eventType: 'REACH_FINAL' as ScoringEventType, points: 23, description: 'Llegar a la final' },
   { eventType: 'CHAMPION' as ScoringEventType, points: 30, description: 'Campeón del torneo' },
   { eventType: 'RUNNER_UP' as ScoringEventType, points: 20, description: 'Subcampeón' },
+  { eventType: 'THIRD_PLACE' as ScoringEventType, points: 15, description: 'Tercer lugar' },
   { eventType: 'CLEAN_SHEET' as ScoringEventType, points: 1, description: 'Portería en cero' },
   { eventType: 'THRASHING_WIN' as ScoringEventType, points: 2, description: 'Goleada por 3+ goles' },
 ];

@@ -198,12 +198,19 @@ export class ScoringService {
       QUARTER_FINAL: 'ADVANCE_QUARTER',
       SEMI_FINAL: 'ADVANCE_SEMI',
       FINAL: 'REACH_FINAL',
+      THIRD_PLACE: 'THIRD_PLACE',
     };
 
     if (advancing && advanceMap[phase.type]) {
       const eventType = advanceMap[phase.type];
       const pts = getPoints(eventType);
       results.push({ points: pts, reason: `Clasifica a siguiente fase (+${pts})`, eventType });
+    }
+
+    // Ganador del tercer lugar
+    if (phase.type === 'THIRD_PLACE' && isWinner) {
+      const pts = getPoints('THIRD_PLACE');
+      results.push({ points: pts, reason: `Tercer lugar (+${pts})`, eventType: 'THIRD_PLACE' });
     }
 
     // Bonificaciones extra

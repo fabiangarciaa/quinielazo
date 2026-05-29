@@ -12,6 +12,7 @@
   "db:migrate": "prisma migrate dev",
   "db:seed": "ts-node prisma/seed.ts",
   "db:seed:dev": "ts-node prisma/seed.dev.ts",
+  "db:add-third-place": "ts-node prisma/add-third-place-rule.ts",
   "db:studio": "prisma studio"
 },
   "dependencies": {

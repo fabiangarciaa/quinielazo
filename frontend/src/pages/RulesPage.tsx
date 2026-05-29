@@ -13,6 +13,7 @@ const EVENT_LABELS: Record<string, { label: string; icon: string; color: string 
   REACH_FINAL:          { label: 'Llegar a la final',              icon: '🌟', color: 'bg-amber-50 border-amber-200 text-amber-700' },
   CHAMPION:             { label: 'Campeón del torneo',             icon: '🏆', color: 'bg-amber-50 border-amber-300 text-amber-800' },
   RUNNER_UP:            { label: 'Subcampeón',                     icon: '🥈', color: 'bg-gray-50 border-gray-300 text-gray-700' },
+  THIRD_PLACE:          { label: 'Tercer lugar',                   icon: '🥉', color: 'bg-orange-50 border-orange-200 text-orange-700' },
   CLEAN_SHEET:          { label: 'Portería en cero',               icon: '🧤', color: 'bg-teal-50 border-teal-200 text-teal-700' },
   THRASHING_WIN:        { label: 'Goleada (3+ goles de diferencia)',icon: '💥', color: 'bg-red-50 border-red-200 text-red-700' },
   SUPER_LEADERSHIP:     { label: 'Superliderato',                  icon: '👑', color: 'bg-amber-50 border-amber-200 text-amber-700' },
