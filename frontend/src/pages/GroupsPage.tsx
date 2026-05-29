@@ -188,11 +188,11 @@ export function GroupsPage() {
     : sortedGroups;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-3 md:p-6 max-w-7xl mx-auto space-y-4 md:space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Tabla de grupos</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-800">Tabla de grupos</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             {groupMatches.length}/{totalGroupMatches} partidos jugados
             {allGroupMatchesPlayed && <span className="ml-2 text-green-600 font-medium">✓ Fase completa</span>}
@@ -202,8 +202,8 @@ export function GroupsPage() {
         {/* Botones admin */}
         {isAdmin && (
           <div className="flex gap-2 flex-wrap">
-            <button onClick={() => setShowThirdPlace(v => !v)}
-              className="flex items-center gap-2 border border-blue-300 text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+           <button onClick={() => setShowThirdPlace(v => !v)}
+            className="flex items-center gap-2 border border-blue-300 text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium transition-colors">
               <Trophy size={15} />
               {showThirdPlace ? 'Ocultar' : 'Ver'} mejores 3ros
             </button>

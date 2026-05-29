@@ -203,11 +203,11 @@ export function MatchesPage() {
   const isMyTeam = (teamId: string) => myTeamIds.has(teamId);
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-5">
+    <div className="p-3 md:p-6 max-w-5xl mx-auto space-y-3 md:space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Partidos</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-800">Partidos</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             {matches.length} partidos · <span className="text-green-600">{finished} finalizados</span> · <span className="text-amber-500">{pending} pendientes</span>
           </p>
@@ -227,18 +227,16 @@ export function MatchesPage() {
       </div>
 
       {/* Filtros de participante */}
-      <div className="bg-white rounded-xl border border-gray-100 p-3 flex items-center gap-3 flex-wrap">
+      <div className="bg-white rounded-xl border border-gray-100 p-2 md:p-3 flex items-center gap-2 flex-wrap">
         <Filter size={15} className="text-gray-400 shrink-0" />
         <span className="text-sm text-gray-500 shrink-0">Ver partidos de:</span>
         <div className="flex gap-2 flex-wrap flex-1">
-          {/* Botón "Todos" — solo admin */}
-          {isAdmin && (
-            <button onClick={() => { setParticipantFilter('all'); setSelectedParticipants(new Set()); }}
-              className={clsx('px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
-                participantFilter === 'all' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50')}>
-              Todos
-            </button>
-          )}
+      {/* Botón "Todos" — visible para todos */}
+        <button onClick={() => { setParticipantFilter('all'); setSelectedParticipants(new Set()); }}
+          className={clsx('px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+          participantFilter === 'all' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50')}>
+          Todos
+        </button>
           {/* Botón "Mis equipos" */}
           {myParticipant && (
             <button onClick={() => { setParticipantFilter('mine'); setSelectedParticipants(new Set()); }}
@@ -517,7 +515,7 @@ function MatchRow({ match, onRecord, highlightHome, highlightAway }: {
       <div className="shrink-0">
         {finished ? <CheckCircle2 size={16} className="text-green-400" /> : <Clock size={16} className="text-amber-400" />}
       </div>
-      <div className="flex-1 grid grid-cols-3 items-center gap-2 min-w-0">
+      <div className="flex-1 grid grid-cols-3 items-center gap-1 md:gap-2 min-w-0">
         <div className="text-right min-w-0">
           <p className={clsx('font-medium text-sm truncate', highlightHome ? 'text-amber-600 font-bold' : 'text-gray-800')}>
             {match.homeTeam?.name}

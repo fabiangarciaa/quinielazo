@@ -41,27 +41,27 @@ export function RankingPage() {
   const leader = ranking[0];
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-3 md:p-6 max-w-5xl mx-auto space-y-4 md:space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Ranking</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-800">Ranking</h1>
           <p className="text-sm text-gray-500 mt-0.5">{ranking.length} participantes</p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => handleExport('csv')}
-            className="flex items-center gap-1.5 text-sm border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">
-            <Download size={14} /> CSV
+          className="flex items-center gap-1.5 text-xs md:text-sm border border-gray-200 text-gray-600 px-2 md:px-3 py-1.5 rounded-lg hover:bg-gray-50">
+            <Download size={13} /> CSV
           </button>
           <button onClick={() => handleExport('excel')}
-            className="flex items-center gap-1.5 text-sm border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">
-            <Download size={14} /> Excel
+            className="flex items-center gap-1.5 text-xs md:text-sm border border-gray-200 text-gray-600 px-2 md:px-3 py-1.5 rounded-lg hover:bg-gray-50">
+              <Download size={13} /> Excel
           </button>
-        </div>
+</div>
       </div>
 
       {/* Podio top 3 */}
       {ranking.length >= 3 && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2 md:gap-3">
           {[ranking[1], ranking[0], ranking[2]].map((p: any, i) => {
             const actualRank = i === 0 ? 2 : i === 1 ? 1 : 3;
             return (
@@ -74,7 +74,7 @@ export function RankingPage() {
                   {(p?.alias || p?.participantName || '?')[0]?.toUpperCase()}
                 </div>
                 <p className="font-semibold text-gray-800 text-sm truncate">{p?.alias || p?.participantName}</p>
-                <p className="text-2xl font-bold mt-1" style={{ color: COLORS[actualRank - 1] }}>{p?.totalPoints}</p>
+                <p className="text-xl md:text-2xl font-bold mt-1" style={{ color: COLORS[actualRank - 1] }}>{p?.totalPoints}</p>
                 <p className="text-xs text-gray-400">puntos</p>
                 <p className="text-xs text-green-500 mt-1">{p?.aliveTeams} equipos vivos</p>
               </div>

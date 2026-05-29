@@ -54,7 +54,7 @@ export function DashboardPage() {
   const leader = ranking[0];
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-3 md:p-6 space-y-4 md:space-y-6 max-w-7xl mx-auto">
       {/* Alerta en vivo */}
       {liveAlert && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-3 flex items-center gap-3 animate-pulse">
@@ -66,16 +66,16 @@ export function DashboardPage() {
       {/* Líder destacado */}
       {leader && (
         <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-6 text-white shadow-lg">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-3xl font-bold">
               {leader.alias?.[0] || leader.participantName[0]}
             </div>
             <div>
               <p className="text-amber-100 text-sm uppercase tracking-wider font-medium">Líder actual</p>
-              <h2 className="text-2xl font-bold">{leader.alias || leader.participantName}</h2>
+              <h2 className="text-xl md:text-2xl font-bold">{leader.alias || leader.participantName}</h2>
               <p className="text-amber-100">{leader.totalPoints} puntos · {leader.aliveTeams} equipos vivos</p>
             </div>
-            <Trophy className="ml-auto opacity-30" size={64} />
+            <Trophy className="ml-auto opacity-30 hidden sm:block" size={64} />
           </div>
         </div>
       )}
