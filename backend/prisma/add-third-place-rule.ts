@@ -3,7 +3,9 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  const tournaments = await prisma.tournament.findMany();
+  const tournaments = await prisma.tournament.findMany({
+  where: { type: 'WORLD_CUP' },
+});
 
   for (const tournament of tournaments) {
     const exists = await prisma.scoringRule.findFirst({
