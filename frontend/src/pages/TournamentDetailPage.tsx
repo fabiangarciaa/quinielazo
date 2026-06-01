@@ -22,6 +22,8 @@ export function TournamentDetailPage() {
     queryKey: ['tournament', id],
     queryFn: () => tournamentsApi.getById(id!).then(r => r.data),
     enabled: !!id,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 
   const statusMut = useMutation({

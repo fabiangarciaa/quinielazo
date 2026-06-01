@@ -28,7 +28,7 @@ export class DrawsService {
       this.prisma.participant.findMany({ where: { tournamentId } }),
       this.prisma.pot.findMany({
         where: { tournamentId },
-        include: { teams: { where: { participantId: null } } },
+        include: { teams: true },
         orderBy: { level: 'asc' },
       }),
     ]);
@@ -56,9 +56,9 @@ export class DrawsService {
     const [participants, teams] = await Promise.all([
       this.prisma.participant.findMany({ where: { tournamentId } }),
       this.prisma.team.findMany({
-        where: { tournamentId, participantId: null },
-        orderBy: { strength: 'desc' },
-      }),
+          where: { tournamentId },
+          orderBy: { strength: 'desc' },
+        }),
     ]);
 
     const assignments: Map<string, string[]> = new Map(participants.map(p => [p.id, []]));
@@ -84,7 +84,7 @@ export class DrawsService {
     const [participants, teams] = await Promise.all([
       this.prisma.participant.findMany({ where: { tournamentId } }),
       this.prisma.team.findMany({
-        where: { tournamentId, participantId: null },
+        where: { tournamentId },
         orderBy: { strength: 'desc' },
       }),
     ]);
@@ -150,6 +150,12 @@ export class DrawsService {
     assignments: Map<string, string[]>,
     method: string,
   ): Promise<DrawResult> {
+    // Limpiar asignaciones previas
+    await this.prisma.team.updateMany({
+      where: { tournamentId },
+      data: { participantId: null },
+    });
+
     const participants = await this.prisma.participant.findMany({
       where: { tournamentId },
       include: { teams: true },
@@ -220,5 +226,13 @@ export class DrawsService {
       [array[i], array[j]] = [array[j], array[i]];
     }
     return array;
+  }
+
+  async resetDraw(tournamentId: string): Promise<void> {
+    await this.prisma.team.updateMany({
+      where: { tournamentId },
+      data: { participantId: null },
+    });
+    await this.prisma.draw.deleteMany({ where: { tournamentId } });
   }
 }

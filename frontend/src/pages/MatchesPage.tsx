@@ -127,6 +127,15 @@ export function MatchesPage() {
     },
   });
 
+  const deleteMatchMut = useMutation({
+    mutationFn: (matchId: string) => matchesApi.delete(matchId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['matches', tournamentId] });
+      toast.success('Partido eliminado');
+    },
+    onError: () => toast.error('Error al eliminar partido'),
+  });
+
   const recordResultMut = useMutation({
     mutationFn: ({ matchId, data }: any) => matchesApi.recordResult(matchId, data),
     onSuccess: (d) => {
@@ -159,13 +168,29 @@ export function MatchesPage() {
   };
 
   const submitResult = (e: React.FormEvent) => {
-    e.preventDefault();
-    const payload = { ...resultForm, homeGoals: +resultForm.homeGoals, awayGoals: +resultForm.awayGoals };
-    if (showResultForm.result) {
-      correctResultMut.mutate({ matchId: showResultForm.id, data: payload });
-    } else {
-      recordResultMut.mutate({ matchId: showResultForm.id, data: payload });
-    }
+  e.preventDefault();
+  const homeGoals = +resultForm.homeGoals;
+  const awayGoals = +resultForm.awayGoals;
+
+  // Auto-detectar ganador si no son penales
+  let advancingTeamId = resultForm.advancingTeamId;
+  if (isEliminationPhase(showResultForm) && !resultForm.hadPenalties) {
+    if (homeGoals > awayGoals) advancingTeamId = showResultForm.homeTeamId;
+    else if (awayGoals > homeGoals) advancingTeamId = showResultForm.awayTeamId;
+  }
+
+  // Validar que en penales se seleccione el equipo que avanza
+  if (isEliminationPhase(showResultForm) && resultForm.hadPenalties && !advancingTeamId) {
+    toast.error('Selecciona el equipo que avanza en penales');
+    return;
+  }
+
+  const payload = { ...resultForm, homeGoals, awayGoals, advancingTeamId };
+  if (showResultForm.result) {
+    correctResultMut.mutate({ matchId: showResultForm.id, data: payload });
+  } else {
+    recordResultMut.mutate({ matchId: showResultForm.id, data: payload });
+  }
   };
 
   const toggleGroup = (key: string) => {
@@ -289,6 +314,30 @@ export function MatchesPage() {
         </div>
       )}
 
+      {/* Cerrar fase — cuando todos los partidos están finalizados */}
+      {isAdmin && activePhase && allMatches.filter((m: any) => m.phase?.id === activePhase.id && m.status === 'SCHEDULED').length === 0 && allMatches.filter((m: any) => m.phase?.id === activePhase.id).length > 0 && (
+        <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center justify-between">
+          <p className="text-sm text-green-700">
+            ✅ Todos los partidos de <strong>{activePhase.name}</strong> están finalizados.
+          </p>
+          <button
+            onClick={() => {
+              const nextPhase = (phases as any[]).find((ph: any) => ph.roundNumber === activePhase.roundNumber + 1);
+              if (!nextPhase) { toast.error('No hay siguiente fase configurada'); return; }
+              if (confirm(`¿Cerrar ${activePhase.name} y activar ${nextPhase.name}?`)) {
+                phasesApi.setActive(nextPhase.id).then(() => {
+                  qc.invalidateQueries({ queryKey: ['phases', tournamentId] });
+                  qc.invalidateQueries({ queryKey: ['teams', tournamentId] });
+                  toast.success(`${nextPhase.name} activada`);
+                });
+              }
+            }}
+            className="text-xs bg-green-500 text-white px-3 py-1.5 rounded-lg hover:bg-green-600">
+            Cerrar fase → siguiente
+          </button>
+        </div>
+      )}
+
       {/* Lista de partidos */}
       {isLoading ? <p className="text-center text-gray-400 py-8">Cargando...</p> : (
         <div className="space-y-3">
@@ -316,6 +365,7 @@ export function MatchesPage() {
                     {groupData.matches.map((match: any) => (
                       <MatchRow key={match.id} match={match}
                         onRecord={isAdmin ? () => openResult(match) : undefined}
+                        onDelete={isAdmin ? () => { if (confirm(`¿Eliminar partido ${match.homeTeam?.name} vs ${match.awayTeam?.name}?`)) deleteMatchMut.mutate(match.id); } : undefined}
                         highlightHome={isMyTeam(match.homeTeamId)}
                         highlightAway={isMyTeam(match.awayTeamId)} />
                     ))}
@@ -379,31 +429,46 @@ export function MatchesPage() {
             <h2 className="text-lg font-bold mb-4">Nuevo partido</h2>
             <form onSubmit={e => { e.preventDefault(); createMatchMut.mutate(matchForm); }} className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fase *</label>
-                <select value={matchForm.phaseId} onChange={e => setMatchForm(f => ({ ...f, phaseId: e.target.value }))} required
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
-                  <option value="">Seleccionar fase...</option>
-                  {phases.map((ph: any) => <option key={ph.id} value={ph.id}>{ph.name}</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Local *</label>
-                  <select value={matchForm.homeTeamId} onChange={e => setMatchForm(f => ({ ...f, homeTeamId: e.target.value }))} required
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Fase *</label>
+                  <select value={matchForm.phaseId} onChange={e => setMatchForm(f => ({ ...f, phaseId: e.target.value }))} required
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
-                    <option value="">Seleccionar...</option>
-                    {teams.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    <option value="">Seleccionar fase...</option>
+                    {phases
+                      .filter((ph: any) => ph.isActive)
+                      .map((ph: any) => <option key={ph.id} value={ph.id}>{ph.name}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Visitante *</label>
-                  <select value={matchForm.awayTeamId} onChange={e => setMatchForm(f => ({ ...f, awayTeamId: e.target.value }))} required
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
-                    <option value="">Seleccionar...</option>
-                    {teams.filter((t: any) => t.id !== matchForm.homeTeamId).map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Local *</label>
+                    <select value={matchForm.homeTeamId} onChange={e => setMatchForm(f => ({ ...f, homeTeamId: e.target.value }))} required
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
+                      <option value="">Seleccionar...</option>
+                      {teams
+                        .filter((t: any) => {
+                          const selectedPhase = phases.find((ph: any) => ph.id === matchForm.phaseId);
+                          if (selectedPhase?.type === 'THIRD_PLACE') return true;
+                          return t.status === 'ACTIVE';
+                        })
+                        .map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Visitante *</label>
+                    <select value={matchForm.awayTeamId} onChange={e => setMatchForm(f => ({ ...f, awayTeamId: e.target.value }))} required
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
+                      <option value="">Seleccionar...</option>
+                      {teams
+                        .filter((t: any) => {
+                          if (t.id === matchForm.homeTeamId) return false;
+                          const selectedPhase = phases.find((ph: any) => ph.id === matchForm.phaseId);
+                          if (selectedPhase?.type === 'THIRD_PLACE') return true;
+                          return t.status === 'ACTIVE';
+                        })
+                        .map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  </div>
                 </div>
-              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fecha y hora</label>
                 <input type="datetime-local" value={matchForm.matchDate} onChange={e => setMatchForm(f => ({ ...f, matchDate: e.target.value }))}
@@ -461,19 +526,19 @@ export function MatchesPage() {
                 </label>
               )}
 
-              {/* Equipo que avanza — solo eliminatorias */}
-              {isEliminationPhase(showResultForm) && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Equipo que avanza</label>
-                  <select value={resultForm.advancingTeamId}
-                    onChange={e => setResultForm(f => ({ ...f, advancingTeamId: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
-                    <option value="">Seleccionar...</option>
-                    <option value={showResultForm.homeTeamId}>{showResultForm.homeTeam?.name}</option>
-                    <option value={showResultForm.awayTeamId}>{showResultForm.awayTeam?.name}</option>
-                  </select>
-                </div>
-              )}
+              {/* Equipo que avanza — solo en penales */}
+            {isEliminationPhase(showResultForm) && resultForm.hadPenalties && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Equipo que avanza (penales)</label>
+                <select value={resultForm.advancingTeamId}
+                  onChange={e => setResultForm(f => ({ ...f, advancingTeamId: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
+                  <option value="">Seleccionar...</option>
+                  <option value={showResultForm.homeTeamId}>{showResultForm.homeTeam?.name}</option>
+                  <option value={showResultForm.awayTeamId}>{showResultForm.awayTeam?.name}</option>
+                </select>
+              </div>
+            )}
 
               {/* Preview de bonificaciones */}
               {(+resultForm.homeGoals > 0 || +resultForm.awayGoals > 0) && (
@@ -503,9 +568,10 @@ export function MatchesPage() {
   );
 }
 
-function MatchRow({ match, onRecord, highlightHome, highlightAway }: {
+function MatchRow({ match, onRecord, onDelete, highlightHome, highlightAway }: {
   match: any;
   onRecord?: () => void;
+  onDelete?: () => void;
   highlightHome?: boolean;
   highlightAway?: boolean;
 }) {
@@ -551,6 +617,12 @@ function MatchRow({ match, onRecord, highlightHome, highlightAway }: {
           className={clsx('shrink-0 flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors',
             finished ? 'bg-orange-50 text-orange-600 hover:bg-orange-100' : 'bg-green-50 text-green-600 hover:bg-green-100')}>
           {finished ? <><Edit3 size={12} /> Corregir</> : <><Plus size={12} /> Resultado</>}
+        </button>
+      )}
+      {onDelete && !finished && (
+        <button onClick={onDelete}
+          className="shrink-0 p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+          <Trash2 size={13} />
         </button>
       )}
     </div>

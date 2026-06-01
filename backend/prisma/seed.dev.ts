@@ -3,10 +3,81 @@ import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+const EQUIPOS_MUNDIAL: { name: string; country: string; strength: number; bombo: number; grupo: string }[] = [
+  { name: 'España',              country: 'España',              strength: 100, bombo: 1, grupo: 'H' },
+  { name: 'Argentina',           country: 'Argentina',           strength: 99,  bombo: 1, grupo: 'J' },
+  { name: 'Francia',             country: 'Francia',             strength: 98,  bombo: 1, grupo: 'I' },
+  { name: 'Inglaterra',          country: 'Inglaterra',          strength: 96,  bombo: 1, grupo: 'L' },
+  { name: 'Brasil',              country: 'Brasil',              strength: 95,  bombo: 1, grupo: 'C' },
+  { name: 'Portugal',            country: 'Portugal',            strength: 93,  bombo: 1, grupo: 'K' },
+  { name: 'Países Bajos',        country: 'Países Bajos',        strength: 91,  bombo: 2, grupo: 'F' },
+  { name: 'Marruecos',           country: 'Marruecos',           strength: 89,  bombo: 2, grupo: 'C' },
+  { name: 'Alemania',            country: 'Alemania',            strength: 87,  bombo: 2, grupo: 'E' },
+  { name: 'Uruguay',             country: 'Uruguay',             strength: 86,  bombo: 2, grupo: 'H' },
+  { name: 'Croacia',             country: 'Croacia',             strength: 85,  bombo: 2, grupo: 'L' },
+  { name: 'Colombia',            country: 'Colombia',            strength: 84,  bombo: 2, grupo: 'K' },
+  { name: 'Senegal',             country: 'Senegal',             strength: 81,  bombo: 3, grupo: 'I' },
+  { name: 'Bélgica',             country: 'Bélgica',             strength: 80,  bombo: 3, grupo: 'G' },
+  { name: 'México',              country: 'México',              strength: 78,  bombo: 3, grupo: 'A' },
+  { name: 'Suiza',               country: 'Suiza',               strength: 74,  bombo: 3, grupo: 'B' },
+  { name: 'Ecuador',             country: 'Ecuador',             strength: 73,  bombo: 3, grupo: 'E' },
+  { name: 'Japón',               country: 'Japón',               strength: 72,  bombo: 3, grupo: 'F' },
+  { name: 'Estados Unidos',      country: 'Estados Unidos',      strength: 70,  bombo: 4, grupo: 'D' },
+  { name: 'Noruega',             country: 'Noruega',             strength: 70,  bombo: 4, grupo: 'I' },
+  { name: 'Turquía',             country: 'Turquía',             strength: 68,  bombo: 4, grupo: 'D' },
+  { name: 'Australia',           country: 'Australia',           strength: 66,  bombo: 4, grupo: 'D' },
+  { name: 'Irán',                country: 'Irán',                strength: 65,  bombo: 4, grupo: 'G' },
+  { name: 'Corea del Sur',       country: 'Corea del Sur',       strength: 63,  bombo: 4, grupo: 'A' },
+  { name: 'Escocia',             country: 'Escocia',             strength: 60,  bombo: 5, grupo: 'C' },
+  { name: 'Suecia',              country: 'Suecia',              strength: 59,  bombo: 5, grupo: 'F' },
+  { name: 'Austria',             country: 'Austria',             strength: 57,  bombo: 5, grupo: 'J' },
+  { name: 'Costa de Marfil',     country: 'Costa de Marfil',     strength: 56,  bombo: 5, grupo: 'E' },
+  { name: 'Egipto',              country: 'Egipto',              strength: 54,  bombo: 5, grupo: 'G' },
+  { name: 'Paraguay',            country: 'Paraguay',            strength: 52,  bombo: 5, grupo: 'D' },
+  { name: 'Rep. Checa',          country: 'Rep. Checa',          strength: 50,  bombo: 6, grupo: 'A' },
+  { name: 'Bosnia y Herzegovina',country: 'Bosnia y Herzegovina',strength: 49,  bombo: 6, grupo: 'B' },
+  { name: 'Canadá',              country: 'Canadá',              strength: 48,  bombo: 6, grupo: 'B' },
+  { name: 'RD Congo',            country: 'RD Congo',            strength: 46,  bombo: 6, grupo: 'K' },
+  { name: 'Túnez',               country: 'Túnez',               strength: 45,  bombo: 6, grupo: 'F' },
+  { name: 'Ghana',               country: 'Ghana',               strength: 43,  bombo: 6, grupo: 'L' },
+  { name: 'Uzbekistán',          country: 'Uzbekistán',          strength: 41,  bombo: 7, grupo: 'K' },
+  { name: 'Arabia Saudita',      country: 'Arabia Saudita',      strength: 40,  bombo: 7, grupo: 'H' },
+  { name: 'Argelia',             country: 'Argelia',             strength: 38,  bombo: 7, grupo: 'J' },
+  { name: 'Sudáfrica',           country: 'Sudáfrica',           strength: 37,  bombo: 7, grupo: 'A' },
+  { name: 'Nueva Zelanda',       country: 'Nueva Zelanda',       strength: 35,  bombo: 7, grupo: 'G' },
+  { name: 'Irak',                country: 'Irak',                strength: 34,  bombo: 7, grupo: 'I' },
+  { name: 'Cabo Verde',          country: 'Cabo Verde',          strength: 32,  bombo: 8, grupo: 'H' },
+  { name: 'Panamá',              country: 'Panamá',              strength: 30,  bombo: 8, grupo: 'L' },
+  { name: 'Catar',               country: 'Catar',               strength: 29,  bombo: 8, grupo: 'B' },
+  { name: 'Jordania',            country: 'Jordania',            strength: 27,  bombo: 8, grupo: 'J' },
+  { name: 'Haití',               country: 'Haití',               strength: 25,  bombo: 8, grupo: 'C' },
+  { name: 'Curaçao',             country: 'Curaçao',             strength: 23,  bombo: 8, grupo: 'E' },
+];
+
+const SCORING_RULES = [
+  { eventType: 'WIN_GROUP' as ScoringEventType,           points: 4,  description: 'Victoria en fase de grupos' },
+  { eventType: 'DRAW_GROUP' as ScoringEventType,          points: 2,  description: 'Empate en fase de grupos' },
+  { eventType: 'ADVANCE_ROUND_OF_32' as ScoringEventType, points: 4,  description: 'Clasificar a 16avos de final' },
+  { eventType: 'ADVANCE_ROUND_OF_16' as ScoringEventType, points: 6,  description: 'Clasificar a octavos de final' },
+  { eventType: 'ADVANCE_QUARTER' as ScoringEventType,     points: 8,  description: 'Clasificar a cuartos de final' },
+  { eventType: 'ADVANCE_SEMI' as ScoringEventType,        points: 12, description: 'Clasificar a semifinal' },
+  { eventType: 'REACH_FINAL' as ScoringEventType,         points: 15, description: 'Llegar a la final' },
+  { eventType: 'CHAMPION' as ScoringEventType,            points: 20, description: 'Campeón del torneo' },
+  { eventType: 'RUNNER_UP' as ScoringEventType,           points: 10, description: 'Subcampeón' },
+  { eventType: 'THIRD_PLACE' as ScoringEventType,         points: 10, description: 'Tercer lugar' },
+  { eventType: 'CLEAN_SHEET' as ScoringEventType,         points: 3,  description: 'Portería en cero' },
+  { eventType: 'THRASHING_WIN' as ScoringEventType,       points: 4,  description: 'Goleada por 3+ goles' },
+];
+
+const BOMBO_NOMBRES = [
+  'Bombo 1 Favoritos', 'Bombo 2 Candidatos', 'Bombo 3 Competitivos',
+  'Bombo 4 Aspirantes', 'Bombo 5 Peleadores', 'Bombo 6 Sorpresas',
+  'Bombo 7 Debiles', 'Bombo 8 Cenicientas',
+];
+
 async function main() {
   console.log('🌱 Seed DEV — Quinielazo\n');
 
-  // Limpiar todo
   await prisma.rankingHistory.deleteMany({});
   await prisma.participantScore.deleteMany({});
   await prisma.teamScore.deleteMany({});
@@ -65,7 +136,7 @@ async function main() {
       name: 'Mundial 2026',
       type: TournamentType.WORLD_CUP,
       season: '2026',
-      teamCount: 6,
+      teamCount: 48,
       participantCount: 6,
       competitionSystem: 'Fase de grupos + Eliminación directa',
       status: TournamentStatus.IN_PROGRESS,
@@ -74,45 +145,67 @@ async function main() {
   });
 
   // Reglas de puntuación
-  const rules = [
-    { eventType: 'WIN_GROUP' as ScoringEventType,           points: 3,  description: 'Victoria en fase de grupos' },
-    { eventType: 'DRAW_GROUP' as ScoringEventType,          points: 1,  description: 'Empate en fase de grupos' },
-    { eventType: 'ADVANCE_ROUND_OF_16' as ScoringEventType, points: 8,  description: 'Clasificar a octavos de final' },
-    { eventType: 'ADVANCE_QUARTER' as ScoringEventType,     points: 12, description: 'Clasificar a cuartos de final' },
-    { eventType: 'ADVANCE_SEMI' as ScoringEventType,        points: 17, description: 'Clasificar a semifinal' },
-    { eventType: 'REACH_FINAL' as ScoringEventType,         points: 23, description: 'Llegar a la final' },
-    { eventType: 'CHAMPION' as ScoringEventType,            points: 30, description: 'Campeón del torneo' },
-    { eventType: 'RUNNER_UP' as ScoringEventType,           points: 20, description: 'Subcampeón' },
-    { eventType: 'THIRD_PLACE' as ScoringEventType,         points: 15, description: 'Tercer lugar' },
-    { eventType: 'CLEAN_SHEET' as ScoringEventType,         points: 1,  description: 'Portería en cero' },
-    { eventType: 'THRASHING_WIN' as ScoringEventType,       points: 2,  description: 'Goleada por 3+ goles' },
-  ];
-
-  const scoringRules: any[] = [];
-  for (const r of rules) {
-    const rule = await prisma.scoringRule.create({ data: { ...r, tournamentId: mundial.id } });
-    scoringRules.push(rule);
+  for (const r of SCORING_RULES) {
+    await prisma.scoringRule.create({ data: { ...r, tournamentId: mundial.id } });
   }
+  console.log('✅ Reglas de puntuación creadas');
 
-  // Fase de grupos
-  const fase = await prisma.tournamentPhase.create({
+  // Fases
+  const faseGrupos = await prisma.tournamentPhase.create({
     data: { tournamentId: mundial.id, name: 'Fase de grupos', type: 'GROUP_STAGE', roundNumber: 1, isActive: true },
   });
+  for (const [name, type, round] of [
+    ['16avos de final',  'ROUND_OF_32',    2],
+    ['Octavos de final', 'ROUND_OF_16',    3],
+    ['Cuartos de final', 'QUARTER_FINAL',  4],
+    ['Semifinal',        'SEMI_FINAL',     5],
+    ['Tercer lugar',     'THIRD_PLACE',    6],
+    ['Final',            'FINAL',          7],
+  ] as [string, string, number][]) {
+    await prisma.tournamentPhase.create({
+      data: { tournamentId: mundial.id, name, type: type as any, roundNumber: round, isActive: false },
+    });
+  }
+  console.log('✅ Fases creadas');
 
-  // 6 equipos (1 por participante)
-  const equipos = [
-    { name: 'España',    country: 'España',    strength: 100 },
-    { name: 'Argentina', country: 'Argentina', strength: 99  },
-    { name: 'Francia',   country: 'Francia',   strength: 98  },
-    { name: 'Brasil',    country: 'Brasil',    strength: 95  },
-    { name: 'México',    country: 'México',    strength: 78  },
-    { name: 'Alemania',  country: 'Alemania',  strength: 87  },
-  ];
+  // Bombos
+  const bombos: any[] = [];
+  for (let i = 0; i < 8; i++) {
+    const eqs = EQUIPOS_MUNDIAL.filter(e => e.bombo === i + 1);
+    const strengths = eqs.map(e => e.strength);
+    const bombo = await prisma.pot.create({
+      data: {
+        tournamentId: mundial.id,
+        name: BOMBO_NOMBRES[i],
+        level: i + 1,
+        strengthMin: Math.min(...strengths),
+        strengthMax: Math.max(...strengths),
+        teamsPerParticipant: 1,
+      },
+    });
+    bombos.push(bombo);
+  }
+  console.log('✅ 8 bombos creados');
 
-  // Crear participantes y asignar equipos
-  const participants = [];
+  // Equipos
+  for (const eq of EQUIPOS_MUNDIAL) {
+    await prisma.team.create({
+      data: {
+        tournamentId: mundial.id,
+        name: eq.name,
+        country: eq.country,
+        strength: eq.strength,
+        potId: bombos[eq.bombo - 1].id,
+        phaseReached: `Grupo ${eq.grupo}`,
+        status: 'ACTIVE',
+      },
+    });
+  }
+  console.log('✅ 48 equipos creados');
+
+  // Participantes (sin equipos asignados — los asignas con el sorteo)
   for (let i = 0; i < users.length; i++) {
-    const participant = await prisma.participant.create({
+    await prisma.participant.create({
       data: {
         tournamentId: mundial.id,
         userId: users[i].id,
@@ -120,125 +213,118 @@ async function main() {
         alias: users[i].username,
       },
     });
-
-    const team = await prisma.team.create({
-      data: {
-        tournamentId: mundial.id,
-        participantId: participant.id,
-        name: equipos[i].name,
-        country: equipos[i].country,
-        strength: equipos[i].strength,
-        status: 'ACTIVE',
-      },
-    });
-
-    participants.push({ ...participant, team });
   }
-  console.log('✅ 6 participantes y equipos creados');
+  console.log('✅ 6 participantes creados');
 
-  // Crear 3 partidos con resultados
-  const partidos = [
-    { home: 0, away: 1, homeGoals: 2, awayGoals: 1 }, // España 2-1 Argentina
-    { home: 2, away: 3, homeGoals: 0, awayGoals: 0 }, // Francia 0-0 Brasil
-    { home: 4, away: 5, homeGoals: 1, awayGoals: 3 }, // México 1-3 Alemania
+  // Partidos fase de grupos
+  const PARTIDOS: [string, string, string, string, string][] = [
+    ['México','Sudáfrica','2026-06-11T15:00:00','Estadio Ciudad de Mexico','Grupo A'],
+    ['Corea del Sur','Rep. Checa','2026-06-11T22:00:00','Estadio Guadalajara','Grupo A'],
+    ['Canadá','Bosnia y Herzegovina','2026-06-12T15:00:00','Toronto Stadium','Grupo B'],
+    ['Estados Unidos','Paraguay','2026-06-12T21:00:00','Los Angeles Stadium','Grupo D'],
+    ['Catar','Suiza','2026-06-13T15:00:00','San Francisco Stadium','Grupo B'],
+    ['Brasil','Marruecos','2026-06-13T18:00:00','New York NJ Stadium','Grupo C'],
+    ['Haití','Escocia','2026-06-13T21:00:00','Boston Stadium','Grupo C'],
+    ['Australia','Turquía','2026-06-13T21:00:00','BC Place Vancouver','Grupo D'],
+    ['Alemania','Curaçao','2026-06-14T13:00:00','Houston Stadium','Grupo E'],
+    ['Países Bajos','Japón','2026-06-14T16:00:00','Dallas Stadium','Grupo F'],
+    ['Costa de Marfil','Ecuador','2026-06-14T19:00:00','Philadelphia Stadium','Grupo E'],
+    ['Suecia','Túnez','2026-06-14T22:00:00','Estadio Monterrey','Grupo F'],
+    ['España','Cabo Verde','2026-06-15T12:00:00','Atlanta Stadium','Grupo H'],
+    ['Bélgica','Egipto','2026-06-15T15:00:00','BC Place Vancouver','Grupo G'],
+    ['Arabia Saudita','Uruguay','2026-06-15T18:00:00','Miami Stadium','Grupo H'],
+    ['Irán','Nueva Zelanda','2026-06-15T21:00:00','Los Angeles Stadium','Grupo G'],
+    ['Francia','Senegal','2026-06-16T15:00:00','New York NJ Stadium','Grupo I'],
+    ['Irak','Noruega','2026-06-16T18:00:00','Boston Stadium','Grupo I'],
+    ['Argentina','Argelia','2026-06-16T21:00:00','Kansas City Stadium','Grupo J'],
+    ['Austria','Jordania','2026-06-17T00:00:00','San Francisco Stadium','Grupo J'],
+    ['Portugal','RD Congo','2026-06-17T13:00:00','Houston Stadium','Grupo K'],
+    ['Inglaterra','Croacia','2026-06-17T16:00:00','Dallas Stadium','Grupo L'],
+    ['Ghana','Panamá','2026-06-17T19:00:00','Toronto Stadium','Grupo L'],
+    ['Uzbekistán','Colombia','2026-06-17T22:00:00','Estadio Ciudad de Mexico','Grupo K'],
+    ['Rep. Checa','Sudáfrica','2026-06-18T12:00:00','Atlanta Stadium','Grupo A'],
+    ['Suiza','Bosnia y Herzegovina','2026-06-18T15:00:00','Los Angeles Stadium','Grupo B'],
+    ['Canadá','Catar','2026-06-18T18:00:00','BC Place Vancouver','Grupo B'],
+    ['México','Corea del Sur','2026-06-18T21:00:00','Estadio Guadalajara','Grupo A'],
+    ['Estados Unidos','Australia','2026-06-19T15:00:00','Seattle Stadium','Grupo D'],
+    ['Escocia','Marruecos','2026-06-19T18:00:00','Boston Stadium','Grupo C'],
+    ['Brasil','Haití','2026-06-19T21:00:00','Philadelphia Stadium','Grupo C'],
+    ['Turquía','Paraguay','2026-06-20T00:00:00','San Francisco Stadium','Grupo D'],
+    ['Países Bajos','Suecia','2026-06-20T13:00:00','Houston Stadium','Grupo F'],
+    ['Alemania','Costa de Marfil','2026-06-20T16:00:00','Toronto Stadium','Grupo E'],
+    ['Ecuador','Curaçao','2026-06-20T20:00:00','Kansas City Stadium','Grupo E'],
+    ['Túnez','Japón','2026-06-21T00:00:00','Estadio Monterrey','Grupo F'],
+    ['España','Arabia Saudita','2026-06-21T12:00:00','Atlanta Stadium','Grupo H'],
+    ['Bélgica','Irán','2026-06-21T15:00:00','Los Angeles Stadium','Grupo G'],
+    ['Uruguay','Cabo Verde','2026-06-21T18:00:00','Miami Stadium','Grupo H'],
+    ['Nueva Zelanda','Egipto','2026-06-21T21:00:00','BC Place Vancouver','Grupo G'],
+    ['Argentina','Austria','2026-06-22T13:00:00','Dallas Stadium','Grupo J'],
+    ['Francia','Irak','2026-06-22T17:00:00','Philadelphia Stadium','Grupo I'],
+    ['Noruega','Senegal','2026-06-22T20:00:00','New York NJ Stadium','Grupo I'],
+    ['Jordania','Argelia','2026-06-22T23:00:00','San Francisco Stadium','Grupo J'],
+    ['Portugal','Uzbekistán','2026-06-23T13:00:00','Houston Stadium','Grupo K'],
+    ['Inglaterra','Ghana','2026-06-23T16:00:00','Boston Stadium','Grupo L'],
+    ['Panamá','Croacia','2026-06-23T19:00:00','Toronto Stadium','Grupo L'],
+    ['Colombia','RD Congo','2026-06-23T22:00:00','Estadio Guadalajara','Grupo K'],
+    ['Rep. Checa','México','2026-06-24T21:00:00','Estadio Ciudad de Mexico','Grupo A'],
+    ['Sudáfrica','Corea del Sur','2026-06-24T21:00:00','Estadio Monterrey','Grupo A'],
+    ['Suiza','Canadá','2026-06-24T15:00:00','BC Place Vancouver','Grupo B'],
+    ['Bosnia y Herzegovina','Catar','2026-06-24T15:00:00','Seattle Stadium','Grupo B'],
+    ['Brasil','Escocia','2026-06-24T18:00:00','Miami Stadium','Grupo C'],
+    ['Marruecos','Haití','2026-06-24T18:00:00','Atlanta Stadium','Grupo C'],
+    ['Turquía','Estados Unidos','2026-06-25T22:00:00','Los Angeles Stadium','Grupo D'],
+    ['Paraguay','Australia','2026-06-25T22:00:00','San Francisco Stadium','Grupo D'],
+    ['Ecuador','Alemania','2026-06-25T16:00:00','New York NJ Stadium','Grupo E'],
+    ['Curaçao','Costa de Marfil','2026-06-25T16:00:00','Philadelphia Stadium','Grupo E'],
+    ['Japón','Suecia','2026-06-25T19:00:00','Dallas Stadium','Grupo F'],
+    ['Túnez','Países Bajos','2026-06-25T19:00:00','Kansas City Stadium','Grupo F'],
+    ['Nueva Zelanda','Bélgica','2026-06-26T23:00:00','BC Place Vancouver','Grupo G'],
+    ['Egipto','Irán','2026-06-26T23:00:00','Seattle Stadium','Grupo G'],
+    ['Uruguay','España','2026-06-26T20:00:00','Estadio Guadalajara','Grupo H'],
+    ['Cabo Verde','Arabia Saudita','2026-06-26T20:00:00','Houston Stadium','Grupo H'],
+    ['Noruega','Francia','2026-06-26T15:00:00','Boston Stadium','Grupo I'],
+    ['Senegal','Irak','2026-06-26T15:00:00','Toronto Stadium','Grupo I'],
+    ['Argelia','Austria','2026-06-27T22:00:00','Kansas City Stadium','Grupo J'],
+    ['Jordania','Argentina','2026-06-27T22:00:00','Dallas Stadium','Grupo J'],
+    ['Colombia','Portugal','2026-06-27T19:30:00','Miami Stadium','Grupo K'],
+    ['RD Congo','Uzbekistán','2026-06-27T19:30:00','Atlanta Stadium','Grupo K'],
+    ['Panamá','Inglaterra','2026-06-27T17:00:00','New York NJ Stadium','Grupo L'],
+    ['Croacia','Ghana','2026-06-27T17:00:00','Philadelphia Stadium','Grupo L'],
   ];
 
-  for (const p of partidos) {
-    const homeTeam = participants[p.home].team;
-    const awayTeam = participants[p.away].team;
-    const isThrashing = Math.abs(p.homeGoals - p.awayGoals) >= 3;
-    const homeWin = p.homeGoals > p.awayGoals;
-    const awayWin = p.awayGoals > p.homeGoals;
-    const draw = p.homeGoals === p.awayGoals;
+  // Crear mapa de equipos por nombre
+  const teams = await prisma.team.findMany({ where: { tournamentId: mundial.id } });
+  const teamMap: Record<string, string> = {};
+  teams.forEach(t => { teamMap[t.name] = t.id; });
 
-    const match = await prisma.match.create({
+  let creados = 0;
+  for (const [local, visitante, fechaET, sede, grupo] of PARTIDOS) {
+    const homeId = teamMap[local];
+    const awayId = teamMap[visitante];
+    if (!homeId || !awayId) { console.warn(`⚠️ No encontrado: ${local} vs ${visitante}`); continue; }
+    await prisma.match.create({
       data: {
         tournamentId: mundial.id,
-        phaseId: fase.id,
-        homeTeamId: homeTeam.id,
-        awayTeamId: awayTeam.id,
-        status: 'FINISHED',
-        matchDate: new Date(),
+        phaseId: faseGrupos.id,
+        homeTeamId: homeId,
+        awayTeamId: awayId,
+        matchDate: new Date(fechaET + '-04:00'),
+        notes: `${grupo} — ${sede}`,
+        status: 'SCHEDULED',
       },
     });
-
-    const result = await prisma.result.create({
-      data: {
-        matchId: match.id,
-        homeGoals: p.homeGoals,
-        awayGoals: p.awayGoals,
-        homeCleanSheet: p.awayGoals === 0,
-        awayCleanSheet: p.homeGoals === 0,
-        isThrashing,
-        winnerTeamId: homeWin ? homeTeam.id : awayWin ? awayTeam.id : null,
-      },
-    });
-
-    // Calcular puntos manualmente
-    const winRule = scoringRules.find(r => r.eventType === 'WIN_GROUP');
-    const drawRule = scoringRules.find(r => r.eventType === 'DRAW_GROUP');
-    const cleanRule = scoringRules.find(r => r.eventType === 'CLEAN_SHEET');
-    const thrashRule = scoringRules.find(r => r.eventType === 'THRASHING_WIN');
-
-    const homeParticipant = participants[p.home];
-    const awayParticipant = participants[p.away];
-
-    // Puntos local
-    if (homeWin && winRule) {
-      await prisma.participantScore.create({
-        data: { participantId: homeParticipant.id, tournamentId: mundial.id, resultId: result.id, scoringRuleId: winRule.id, teamId: homeTeam.id, pointsEarned: winRule.points, reason: `Victoria de ${homeTeam.name}` },
-      });
-    }
-    if (draw && drawRule) {
-      await prisma.participantScore.create({
-        data: { participantId: homeParticipant.id, tournamentId: mundial.id, resultId: result.id, scoringRuleId: drawRule.id, teamId: homeTeam.id, pointsEarned: drawRule.points, reason: `Empate de ${homeTeam.name}` },
-      });
-    }
-    if (p.awayGoals === 0 && cleanRule) {
-      await prisma.participantScore.create({
-        data: { participantId: homeParticipant.id, tournamentId: mundial.id, resultId: result.id, scoringRuleId: cleanRule.id, teamId: homeTeam.id, pointsEarned: cleanRule.points, reason: `Portería en cero de ${homeTeam.name}` },
-      });
-    }
-
-    // Puntos visitante
-    if (awayWin && winRule) {
-      await prisma.participantScore.create({
-        data: { participantId: awayParticipant.id, tournamentId: mundial.id, resultId: result.id, scoringRuleId: winRule.id, teamId: awayTeam.id, pointsEarned: winRule.points, reason: `Victoria de ${awayTeam.name}` },
-      });
-    }
-    if (draw && drawRule) {
-      await prisma.participantScore.create({
-        data: { participantId: awayParticipant.id, tournamentId: mundial.id, resultId: result.id, scoringRuleId: drawRule.id, teamId: awayTeam.id, pointsEarned: drawRule.points, reason: `Empate de ${awayTeam.name}` },
-      });
-    }
-    if (p.homeGoals === 0 && cleanRule) {
-      await prisma.participantScore.create({
-        data: { participantId: awayParticipant.id, tournamentId: mundial.id, resultId: result.id, scoringRuleId: cleanRule.id, teamId: awayTeam.id, pointsEarned: cleanRule.points, reason: `Portería en cero de ${awayTeam.name}` },
-      });
-    }
-    if (isThrashing && thrashRule) {
-      const winnerParticipant = homeWin ? homeParticipant : awayParticipant;
-      const winnerTeam = homeWin ? homeTeam : awayTeam;
-      await prisma.participantScore.create({
-        data: { participantId: winnerParticipant.id, tournamentId: mundial.id, resultId: result.id, scoringRuleId: thrashRule.id, teamId: winnerTeam.id, pointsEarned: thrashRule.points, reason: `Goleada de ${winnerTeam.name}` },
-      });
-    }
+    creados++;
   }
-  console.log('✅ 3 partidos con resultados y puntos creados');
+  console.log(`✅ ${creados}/72 partidos creados`);
 
-  // Actualizar puntos totales
-  for (const p of participants) {
-    const scores = await prisma.participantScore.findMany({ where: { participantId: p.id } });
-    const total = scores.reduce((sum, s) => sum + s.pointsEarned, 0);
-    await prisma.participant.update({ where: { id: p.id }, data: { totalPoints: total } });
-  }
-  console.log('✅ Puntos totales actualizados');
+  console.log('\n🎉 Seed DEV completado!');
 
   console.log('\n🎉 Seed DEV completado!');
   console.log('─────────────────────────────');
   console.log('Admin:    quinielazo.admin / admin123');
   console.log('─────────────────────────────');
   users.forEach(u => console.log(`${u.username.padEnd(20)} / test123`));
+  console.log('\n💡 Recuerda ejecutar el sorteo desde la app para asignar equipos a participantes.');
 }
 
 main()

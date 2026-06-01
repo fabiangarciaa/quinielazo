@@ -37,8 +37,8 @@ export class TournamentsService {
     const allowed: Record<string, string[]> = {
       SETUP: ['DRAW_PENDING'],
       DRAW_PENDING: ['SETUP', 'IN_PROGRESS'],
-      IN_PROGRESS: ['FINISHED'],
-      FINISHED: [],
+      IN_PROGRESS: ['DRAW_PENDING', 'FINISHED'],
+      FINISHED: ['IN_PROGRESS'],
     };
     if (!allowed[tournament.status]?.includes(status)) {
       throw new BadRequestException(`No se puede cambiar de ${tournament.status} a ${status}`);

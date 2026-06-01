@@ -59,9 +59,9 @@ export class PhasesService {
 
     const eliminatedIds = teamIds.filter(id => !advancingTeamIds.includes(id));
 
-    await this.prisma.team.updateMany({
+   await this.prisma.team.updateMany({
       where: { id: { in: eliminatedIds } },
-      data: { status: 'ELIMINATED', phaseReached: phase.name },
+      data: { status: 'ELIMINATED' },
     });
 
     if (advancingTeamIds.length > 0) {
@@ -72,6 +72,14 @@ export class PhasesService {
     }
 
     await this.prisma.tournamentPhase.update({ where: { id: phaseId }, data: { isActive: false } });
+
+    // Activar siguiente fase automáticamente
+    const nextPhase = await this.prisma.tournamentPhase.findFirst({
+      where: { tournamentId: phase.tournamentId, roundNumber: phase.roundNumber + 1 },
+    });
+    if (nextPhase) {
+      await this.prisma.tournamentPhase.update({ where: { id: nextPhase.id }, data: { isActive: true } });
+    }
 
     return {
       phaseId,

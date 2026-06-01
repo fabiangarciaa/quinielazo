@@ -72,6 +72,7 @@ export const drawsApi = {
   executeSnake: (tournamentId: string) => api.post(`/draws/${tournamentId}/snake`),
   executeBalanced: (tournamentId: string, teamsPerParticipant: number) =>
     api.post(`/draws/${tournamentId}/balanced`, { teamsPerParticipant }),
+  reset: (tournamentId: string) => api.delete(`/draws/${tournamentId}/reset`),
 };
 
 export const phasesApi = {

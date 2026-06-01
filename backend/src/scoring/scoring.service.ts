@@ -20,10 +20,6 @@ export class ScoringService {
     private eventsGateway: EventsGateway,
   ) {}
 
-  /**
-   * Procesa un resultado de partido y genera todos los puntos correspondientes.
-   * Llama al recálculo de ranking y emite eventos por WebSocket.
-   */
   async processResult(data: MatchResultData): Promise<{
     result: any;
     pointsGenerated: Array<{ participantId: string; points: number; reason: string }>;
@@ -49,10 +45,8 @@ export class ScoringService {
     const awayCleanSheet = data.homeGoals === 0;
     const winnerTeamId = homeWon ? match.homeTeamId : awayWon ? match.awayTeamId : null;
 
-    // Obtener ranking antes
     const rankingBefore = await this.rankingService.getRanking(match.tournamentId);
 
-    // Guardar resultado
     const result = await this.prisma.result.create({
       data: {
         matchId: data.matchId,
@@ -67,17 +61,14 @@ export class ScoringService {
       },
     });
 
-    // Actualizar estadísticas de equipos
     await this.updateTeamStats(match, data, homeWon, awayWon, isDraw, homeCleanSheet, awayCleanSheet, isThrashing);
 
-    // Obtener reglas de puntuación del torneo
     const rules = await this.prisma.scoringRule.findMany({
       where: { tournamentId: match.tournamentId, isActive: true },
     });
 
     const pointsGenerated: Array<{ participantId: string; teamId: string; points: number; reason: string; ruleId: string }> = [];
 
-    // Calcular puntos por equipo
     for (const [teamId, isWinner, isHome] of [
       [match.homeTeamId, homeWon, true],
       [match.awayTeamId, awayWon, false],
@@ -108,7 +99,6 @@ export class ScoringService {
       }
     }
 
-    // Guardar scores
     for (const p of pointsGenerated) {
       await this.prisma.participantScore.create({
         data: {
@@ -122,39 +112,45 @@ export class ScoringService {
         },
       });
 
-      // Actualizar total del participante
       await this.prisma.participant.update({
         where: { id: p.participantId },
         data: { totalPoints: { increment: p.points } },
       });
     }
 
-    // Marcar equipo eliminado si aplica
-    if (data.advancingTeamId) {
-      const eliminatedTeamId = data.advancingTeamId === match.homeTeamId
-        ? match.awayTeamId : match.homeTeamId;
-      await this.prisma.team.update({
-        where: { id: eliminatedTeamId },
-        data: { status: 'ELIMINATED' },
-      });
+    // Marcar equipo eliminado solo en fases eliminatorias (no en grupos)
+    // Excepción: en THIRD_PLACE ambos se eliminan al terminar
+    if (data.advancingTeamId && match.phase.type !== 'GROUP_STAGE') {
+      if (match.phase.type === 'THIRD_PLACE') {
+        // En tercer lugar, ambos quedan eliminados al terminar
+        await this.prisma.team.update({
+          where: { id: match.homeTeamId },
+          data: { status: 'ELIMINATED' },
+        });
+        await this.prisma.team.update({
+          where: { id: match.awayTeamId },
+          data: { status: 'ELIMINATED' },
+        });
+      } else {
+        // En otras fases eliminatorias, solo el perdedor
+        const eliminatedTeamId = data.advancingTeamId === match.homeTeamId
+          ? match.awayTeamId : match.homeTeamId;
+        await this.prisma.team.update({
+          where: { id: eliminatedTeamId },
+          data: { status: 'ELIMINATED' },
+        });
+      }
     }
 
-    // Actualizar match
     await this.prisma.match.update({
       where: { id: data.matchId },
       data: { status: 'FINISHED' },
     });
 
-    // Recalcular ranking
     const rankingAfter = await this.rankingService.recalculateRanking(match.tournamentId);
-
-    // Guardar snapshot
     await this.rankingService.saveRankingSnapshot(match.tournamentId);
-
-    // Generar resumen
     const summary = this.generateSummary(match, data, pointsGenerated, rankingBefore, rankingAfter);
 
-    // Emitir evento WebSocket
     this.eventsGateway.emitRankingUpdate(match.tournamentId, {
       result,
       pointsGenerated,
@@ -174,7 +170,7 @@ export class ScoringService {
     isThrashing: boolean;
     advancing: boolean;
   }): Array<{ points: number; reason: string; eventType: string }> {
-    const { rules, phase, isWinner, isDraw, cleanSheet, isThrashing, advancing } = params;
+    const { rules, phase, isWinner, isDraw, cleanSheet, isThrashing } = params;
     const results: Array<{ points: number; reason: string; eventType: string }> = [];
 
     const getPoints = (eventType: string) =>
@@ -191,36 +187,47 @@ export class ScoringService {
       }
     }
 
-    // Avance de fase (para partidos eliminatorios)
-    const advanceMap: Record<string, string> = {
-      ROUND_OF_32: 'ADVANCE_ROUND_OF_32',
-      ROUND_OF_16: 'ADVANCE_ROUND_OF_16',
-      QUARTER_FINAL: 'ADVANCE_QUARTER',
-      SEMI_FINAL: 'ADVANCE_SEMI',
-      FINAL: 'REACH_FINAL',
-      THIRD_PLACE: 'THIRD_PLACE',
+    // Ambos equipos reciben puntos por ESTAR en esta fase eliminatoria
+    const arrivalMap: Record<string, string> = {
+      ROUND_OF_32:   'ADVANCE_ROUND_OF_32',  // llegar a 16avos — ambos
+      ROUND_OF_16:   'ADVANCE_ROUND_OF_16',  // llegar a octavos — ambos
+      QUARTER_FINAL: 'ADVANCE_QUARTER',       // llegar a cuartos — ambos
+      SEMI_FINAL:    'ADVANCE_SEMI',          // llegar a semifinal — ambos
+      FINAL:         'REACH_FINAL',           // llegar a final — ambos
     };
 
-    if (advancing && advanceMap[phase.type]) {
-      const eventType = advanceMap[phase.type];
+    if (arrivalMap[phase.type]) {
+      const eventType = arrivalMap[phase.type];
       const pts = getPoints(eventType);
-      results.push({ points: pts, reason: `Clasifica a siguiente fase (+${pts})`, eventType });
+      if (pts > 0) results.push({ points: pts, reason: `Llegar a ${phase.name} (+${pts})`, eventType });
     }
 
-    // Ganador del tercer lugar
+    // Tercer lugar — solo al ganador del partido
     if (phase.type === 'THIRD_PLACE' && isWinner) {
       const pts = getPoints('THIRD_PLACE');
-      results.push({ points: pts, reason: `Tercer lugar (+${pts})`, eventType: 'THIRD_PLACE' });
+      if (pts > 0) results.push({ points: pts, reason: `Tercer lugar (+${pts})`, eventType: 'THIRD_PLACE' });
+    }
+
+    // Campeón — solo al ganador de la final
+    if (phase.type === 'FINAL' && isWinner) {
+      const pts = getPoints('CHAMPION');
+      if (pts > 0) results.push({ points: pts, reason: `¡Campeón! (+${pts})`, eventType: 'CHAMPION' });
+    }
+
+    // Subcampeón — al perdedor de la final
+    if (phase.type === 'FINAL' && !isWinner && !isDraw) {
+      const pts = getPoints('RUNNER_UP');
+      if (pts > 0) results.push({ points: pts, reason: `Subcampeón (+${pts})`, eventType: 'RUNNER_UP' });
     }
 
     // Bonificaciones extra
     if (cleanSheet && (isWinner || isDraw)) {
       const pts = getPoints('CLEAN_SHEET');
-      results.push({ points: pts, reason: `Portería en cero (+${pts})`, eventType: 'CLEAN_SHEET' });
+      if (pts > 0) results.push({ points: pts, reason: `Portería en cero (+${pts})`, eventType: 'CLEAN_SHEET' });
     }
     if (isThrashing) {
       const pts = getPoints('THRASHING_WIN');
-      results.push({ points: pts, reason: `Goleada por 3+ goles (+${pts})`, eventType: 'THRASHING_WIN' });
+      if (pts > 0) results.push({ points: pts, reason: `Goleada por 3+ goles (+${pts})`, eventType: 'THRASHING_WIN' });
     }
 
     return results;

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { drawsApi, potsApi, teamsApi, participantsApi } from '../lib/api';
+import { drawsApi, potsApi, teamsApi, participantsApi, tournamentsApi } from '../lib/api';
 import toast from 'react-hot-toast';
 import { Shuffle, Plus, Zap, CheckCircle, AlertTriangle, BarChart2, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
@@ -28,6 +28,18 @@ export function DrawPage() {
     enabled: !!tournamentId,
   });
 
+  
+
+  const { data: tournament } = useQuery({
+    queryKey: ['tournament', tournamentId],
+    queryFn: () => tournamentsApi.getById(tournamentId!).then(r => r.data),
+    enabled: !!tournamentId,
+  });
+
+
+
+  const canDraw = tournament?.status === 'DRAW_PENDING' || tournament?.status === 'SETUP';
+
   const { data: teams = [] } = useQuery({
     queryKey: ['teams', tournamentId],
     queryFn: () => teamsApi.getByTournament(tournamentId!).then(r => r.data),
@@ -39,6 +51,33 @@ export function DrawPage() {
     queryFn: () => participantsApi.getByTournament(tournamentId!).then(r => r.data),
     enabled: !!tournamentId,
   });
+
+    // Calcular resultado del sorteo actual desde los equipos asignados
+  const drawResult = participants.length > 0 ? (() => {
+    const assignments = participants
+      .filter((p: any) => p.teams?.length > 0)
+      .map((p: any) => ({
+        participantId: p.id,
+        participantName: p.alias || p.name,
+        teams: p.teams?.map((t: any) => ({ id: t.id, name: t.name, strength: t.strength, potName: t.pot?.name || '' })) || [],
+        totalStrength: p.teams?.reduce((acc: number, t: any) => acc + t.strength, 0) || 0,
+      }));
+
+    if (assignments.length === 0) return null;
+
+    const strengths = assignments.map((a: any) => a.totalStrength);
+    const avg = strengths.reduce((a: number, b: number) => a + b, 0) / strengths.length;
+    const stdDev = Math.sqrt(strengths.reduce((acc: number, s: number) => acc + Math.pow(s - avg, 2), 0) / strengths.length);
+    const balanceScore = Math.max(0, 100 - (stdDev / avg) * 100);
+    const balanceLabel = balanceScore >= 80 ? 'Muy equilibrado' : balanceScore >= 50 ? 'Medianamente equilibrado' : 'Desbalanceado';
+
+    return {
+      assignments,
+      balanceScore,
+      balanceLabel,
+      strengthStats: { min: Math.min(...strengths), max: Math.max(...strengths), avg, stdDev },
+    };
+  })() : null;
 
   const proposalMut = useMutation({
     mutationFn: () => drawsApi.calculateProposal(tournamentId!),
@@ -58,6 +97,19 @@ export function DrawPage() {
   const deletePotMut = useMutation({
     mutationFn: (id: string) => potsApi.delete(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['pots', tournamentId] }),
+  });
+
+  const resetDrawMut = useMutation({
+    mutationFn: () => drawsApi.reset(tournamentId!),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['teams', tournamentId] });
+      qc.invalidateQueries({ queryKey: ['participants', tournamentId] });
+      qc.invalidateQueries({ queryKey: ['ranking', tournamentId] });
+      qc.refetchQueries({ queryKey: ['teams', tournamentId] });
+      qc.refetchQueries({ queryKey: ['participants', tournamentId] });
+      toast.success('Sorteo eliminado, equipos desasignados');
+    },
+    onError: () => toast.error('Error al eliminar sorteo'),
   });
 
   const moveTeamMut = useMutation({
@@ -80,6 +132,9 @@ export function DrawPage() {
       setResult(d.data);
       qc.invalidateQueries({ queryKey: ['teams', tournamentId] });
       qc.invalidateQueries({ queryKey: ['participants', tournamentId] });
+      qc.invalidateQueries({ queryKey: ['ranking', tournamentId] });
+      qc.refetchQueries({ queryKey: ['teams', tournamentId] });
+      qc.refetchQueries({ queryKey: ['participants', tournamentId] });
       toast.success('¡Sorteo ejecutado exitosamente!');
     },
     onError: (e: any) => toast.error(e.response?.data?.message || 'Error en el sorteo'),
@@ -186,39 +241,65 @@ export function DrawPage() {
           </div>
         )}
 
-        <button onClick={() => drawMut.mutate()} disabled={drawMut.isPending || participants.length === 0}
-          className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold px-6 py-2.5 rounded-xl transition-colors disabled:opacity-50">
-          <Shuffle size={18} />
-          {drawMut.isPending ? 'Ejecutando sorteo...' : 'Ejecutar sorteo'}
+        <button
+          onClick={() => {
+            const teamsAssigned = teams.filter((t: any) => t.participantId).length;
+            if (teamsAssigned > 0) {
+              if (!confirm(`Ya hay ${teamsAssigned} equipos asignados. ¿Deseas resortear? Esto reasignará todos los equipos.`)) return;
+            }
+            drawMut.mutate();
+          }}
+          disabled={drawMut.isPending || participants.length === 0 || !canDraw}
+            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold px-6 py-2.5 rounded-xl transition-colors disabled:opacity-50">
+            <Shuffle size={18} />
+            {drawMut.isPending ? 'Ejecutando sorteo...' : 'Ejecutar sorteo'}
         </button>
+        {teams.filter((t: any) => t.participantId).length > 0 && canDraw && (
+          <button
+            onClick={() => {
+              if (confirm('¿Eliminar el sorteo actual? Todos los equipos quedarán sin asignar.')) {
+                resetDrawMut.mutate();
+              }
+            }}
+            disabled={resetDrawMut.isPending}
+            className="flex items-center gap-2 border border-red-300 text-red-500 hover:bg-red-50 font-semibold px-6 py-2.5 rounded-xl transition-colors disabled:opacity-50">
+            <Trash2 size={18} />
+            {resetDrawMut.isPending ? 'Eliminando...' : 'Eliminar sorteo'}
+          </button>
+        )}
         {participants.length === 0 && <p className="text-xs text-red-400 mt-2">Agrega participantes antes de ejecutar el sorteo.</p>}
       </div>
 
-      {/* Resultado */}
-      {result && (
+{/* Resultado del sorteo actual */}
+      {(result || drawResult) && (
         <div className="bg-white rounded-2xl border border-gray-100 p-5">
           <div className="flex items-center gap-3 mb-4">
             <CheckCircle className="text-green-500" size={20} />
-            <h2 className="font-semibold text-gray-800">Resultado del sorteo</h2>
+            <h2 className="font-semibold text-gray-800">Asignación actual</h2>
             <div className="ml-auto flex items-center gap-2">
-              <BarChart2 size={14} className={balanceColor} />
-              <span className={clsx('text-sm font-medium', balanceColor)}>{result.balanceLabel}</span>
-              <span className="text-xs text-gray-400">(score: {result.balanceScore?.toFixed(1)})</span>
+              <BarChart2 size={14} className={
+                (result || drawResult)?.balanceLabel === 'Muy equilibrado' ? 'text-green-600' :
+                (result || drawResult)?.balanceLabel === 'Medianamente equilibrado' ? 'text-amber-600' : 'text-red-500'
+              } />
+              <span className={clsx('text-sm font-medium',
+                (result || drawResult)?.balanceLabel === 'Muy equilibrado' ? 'text-green-600' :
+                (result || drawResult)?.balanceLabel === 'Medianamente equilibrado' ? 'text-amber-600' : 'text-red-500'
+              )}>{(result || drawResult)?.balanceLabel}</span>
+              <span className="text-xs text-gray-400">(score: {(result || drawResult)?.balanceScore?.toFixed(1)})</span>
             </div>
           </div>
 
-          {/* Stats de fuerza */}
-          {result.strengthStats && (
+          {(result || drawResult)?.strengthStats && (
             <div className="flex gap-4 mb-4 text-sm text-gray-500">
-              <span>Mín: <strong className="text-gray-800">{result.strengthStats.min}</strong></span>
-              <span>Máx: <strong className="text-gray-800">{result.strengthStats.max}</strong></span>
-              <span>Promedio: <strong className="text-gray-800">{result.strengthStats.avg?.toFixed(1)}</strong></span>
-              <span>Desviación: <strong className="text-gray-800">{result.strengthStats.stdDev?.toFixed(1)}</strong></span>
+              <span>Mín: <strong className="text-gray-800">{(result || drawResult)?.strengthStats.min}</strong></span>
+              <span>Máx: <strong className="text-gray-800">{(result || drawResult)?.strengthStats.max}</strong></span>
+              <span>Promedio: <strong className="text-gray-800">{(result || drawResult)?.strengthStats.avg?.toFixed(1)}</strong></span>
+              <span>Desviación: <strong className="text-gray-800">{(result || drawResult)?.strengthStats.stdDev?.toFixed(1)}</strong></span>
             </div>
           )}
 
           <div className="grid gap-3 md:grid-cols-2">
-            {result.assignments?.map((a: any) => (
+            {(result || drawResult)?.assignments?.map((a: any) => (
               <div key={a.participantId} className="border border-gray-100 rounded-xl p-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-semibold text-gray-800">{a.participantName}</span>
