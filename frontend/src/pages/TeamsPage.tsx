@@ -48,6 +48,15 @@ export function TeamsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['teams', tournamentId] }),
   });
 
+  const strengthMut = useMutation({
+  mutationFn: ({ teamId, strength }: any) => teamsApi.update(teamId, { strength }),
+  onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['teams', tournamentId] });
+    qc.invalidateQueries({ queryKey: ['pots', tournamentId] });
+    toast.success('Fuerza actualizada');
+  },
+  });
+
   const importMut = useMutation({
     mutationFn: (file: File) => teamsApi.importCsv(tournamentId!, file),
     onSuccess: (d) => { qc.invalidateQueries({ queryKey: ['teams', tournamentId] }); toast.success(`${d.data.imported} equipos importados`); },
@@ -158,7 +167,19 @@ export function TeamsPage() {
                       <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                         <div className="h-full bg-amber-400 rounded-full" style={{ width: `${team.strength}%` }} />
                       </div>
-                      <span className="text-xs text-gray-500">{team.strength}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        defaultValue={team.strength}
+                        onBlur={e => {
+                          const val = +e.target.value;
+                          if (val !== team.strength && val >= 1 && val <= 100) {
+                            strengthMut.mutate({ teamId: team.id, strength: val });
+                          }
+                        }}
+                        className="w-12 text-center text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      />
                     </div>
                   </td>
                   <td className="px-4 py-3">

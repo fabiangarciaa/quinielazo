@@ -60,6 +60,16 @@ export function DrawPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['pots', tournamentId] }),
   });
 
+  const moveTeamMut = useMutation({
+  mutationFn: ({ teamId, potId }: any) => teamsApi.update(teamId, { potId }),
+  onSuccess: () => {
+    qc.invalidateQueries({ queryKey: ['pots', tournamentId] });
+    qc.invalidateQueries({ queryKey: ['teams', tournamentId] });
+    toast.success('Equipo movido');
+  },
+  onError: () => toast.error('Error al mover equipo'),
+  });
+
   const drawMut = useMutation({
     mutationFn: async () => {
       if (method === 'pots')     return drawsApi.executePots(tournamentId!);
@@ -128,11 +138,26 @@ export function DrawPage() {
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {pot.teams?.map((t: any) => (
-                    <span key={t.id} className={clsx('text-xs px-2 py-0.5 rounded-full border',
-                      t.participant ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-gray-50 text-gray-600 border-gray-200')}>
-                      {t.name} <span className="opacity-60">({t.strength})</span>
-                    </span>
-                  ))}
+                <div key={t.id} className="flex items-center gap-1">
+                  <span className={clsx('text-xs px-2 py-0.5 rounded-full border',
+                    t.participant ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-gray-50 text-gray-600 border-gray-200')}>
+                    {t.name} <span className="opacity-60">({t.strength})</span>
+                  </span>
+                  <select
+                    value={pot.id}
+                    onChange={e => {
+                      if (e.target.value !== pot.id) {
+                        moveTeamMut.mutate({ teamId: t.id, potId: e.target.value });
+                      }
+                    }}
+                    className="text-xs border border-gray-200 rounded px-1 py-0.5 text-gray-500 focus:outline-none focus:ring-1 focus:ring-purple-400"
+                  >
+                    {pots.map((p: any) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
                   {pot.teams?.length === 0 && <span className="text-xs text-gray-300 italic">Sin equipos</span>}
                 </div>
               </div>
