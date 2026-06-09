@@ -202,7 +202,14 @@ export function RankingPage() {
 function buildChartData(history: any[], ranking: any[]) {
   if (!history.length) return [];
   const snaps = [...new Set(history.map((h: any) => h.snapshotAt))].sort();
-  return snaps.map((snap, idx) => {
+
+  // Punto inicial en 0 para todos
+  const initialEntry: Record<string, any> = { label: 'Inicio' };
+  for (const p of ranking) {
+    initialEntry[p.alias || p.participantName] = 0;
+  }
+
+  const rest = snaps.map((snap, idx) => {
     const entry: Record<string, any> = { label: `R${idx + 1}` };
     const items = history.filter((h: any) => h.snapshotAt === snap);
     for (const item of items) {
@@ -211,4 +218,6 @@ function buildChartData(history: any[], ranking: any[]) {
     }
     return entry;
   });
+
+  return [initialEntry, ...rest];
 }

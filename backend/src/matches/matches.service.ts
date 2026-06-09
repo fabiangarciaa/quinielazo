@@ -2,10 +2,15 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ScoringService } from '../scoring/scoring.service';
+import { RankingService } from '../ranking/ranking.service';
 
 @Injectable()
 export class MatchesService {
-  constructor(private prisma: PrismaService, private scoring: ScoringService) {}
+  constructor(
+    private prisma: PrismaService,
+    private scoring: ScoringService,
+    private ranking: RankingService,
+  ) {}
 
   findByTournament(tournamentId: string, phaseId?: string) {
     return this.prisma.match.findMany({
@@ -72,7 +77,6 @@ export class MatchesService {
   }
 
   async correctResult(matchId: string, data: { homeGoals: number; awayGoals: number; hadPenalties?: boolean; advancingTeamId?: string }) {
-    // Revertir puntos anteriores del resultado
     const existingResult = await this.prisma.result.findUnique({ where: { matchId } });
     if (existingResult) {
       // Restar puntos generados por este resultado
@@ -86,9 +90,72 @@ export class MatchesService {
       await this.prisma.participantScore.deleteMany({ where: { resultId: existingResult.id } });
       await this.prisma.teamScore.deleteMany({ where: { resultId: existingResult.id } });
       await this.prisma.result.delete({ where: { id: existingResult.id } });
-      // Restaurar match a SCHEDULED
       await this.prisma.match.update({ where: { id: matchId }, data: { status: 'SCHEDULED' } });
     }
-    return this.scoring.processResult({ matchId, ...data });
+
+    // Procesar nuevo resultado y reconstruir historial
+    const result = await this.scoring.processResult({ matchId, ...data });
+    const match = await this.prisma.match.findUnique({ where: { id: matchId } });
+    if (match) await this.ranking.rebuildHistory(match.tournamentId);
+    return result;
+  }
+
+  async deleteResult(matchId: string) {
+    const existingResult = await this.prisma.result.findUnique({ where: { matchId } });
+    if (!existingResult) throw new Error('No hay resultado registrado para este partido');
+
+    // Restar puntos generados
+    const scores = await this.prisma.participantScore.findMany({ where: { resultId: existingResult.id } });
+    for (const score of scores) {
+      await this.prisma.participant.update({
+        where: { id: score.participantId },
+        data: { totalPoints: { decrement: score.pointsEarned } },
+      });
+    }
+
+    await this.prisma.participantScore.deleteMany({ where: { resultId: existingResult.id } });
+    await this.prisma.teamScore.deleteMany({ where: { resultId: existingResult.id } });
+
+    const match = await this.prisma.match.findUnique({ where: { id: matchId } });
+
+    await this.prisma.result.delete({ where: { id: existingResult.id } });
+
+    // Restaurar equipo eliminado a ACTIVE si aplica
+    if (existingResult.advancingTeamId && match) {
+      const eliminatedTeamId = existingResult.advancingTeamId === match.homeTeamId
+        ? match.awayTeamId : match.homeTeamId;
+      if (eliminatedTeamId) {
+        await this.prisma.team.update({
+          where: { id: eliminatedTeamId },
+          data: { status: 'ACTIVE' },
+        });
+      }
+    }
+
+    await this.prisma.match.update({ where: { id: matchId }, data: { status: 'SCHEDULED' } });
+
+    // Recalcular ranking y reconstruir historial
+    if (match) {
+      await this.ranking.recalculateRanking(match.tournamentId);
+      await this.ranking.rebuildHistory(match.tournamentId);
+
+      // Si no quedan resultados, resetear prevRank para tendencia 'same'
+      const remainingResults = await this.prisma.result.count({
+        where: { match: { tournamentId: match.tournamentId } },
+      });
+      if (remainingResults === 0) {
+        const participants = await this.prisma.participant.findMany({
+          where: { tournamentId: match.tournamentId },
+        });
+        for (const p of participants) {
+          await this.prisma.participant.update({
+            where: { id: p.id },
+            data: { prevRank: p.currentRank },
+          });
+        }
+      }
+    }
+
+    return { message: 'Resultado eliminado correctamente' };
   }
 }

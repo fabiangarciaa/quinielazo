@@ -65,25 +65,19 @@ export class RankingService {
       include: { teams: true },
     });
 
-    // Ordenar por criterios de desempate
     const sorted = participants.sort((a, b) => {
-      // 1. Puntos totales
       if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-      // 2. Equipos vivos
       const aAlive = a.teams.filter(t => t.status === 'ACTIVE').length;
       const bAlive = b.teams.filter(t => t.status === 'ACTIVE').length;
       if (bAlive !== aAlive) return bAlive - aAlive;
-      // 3. Tiene campeón
       const aChamp = a.teams.some(t => t.status === 'CHAMPION') ? 1 : 0;
       const bChamp = b.teams.some(t => t.status === 'CHAMPION') ? 1 : 0;
       if (bChamp !== aChamp) return bChamp - aChamp;
-      // 4. Victorias totales
       const aWins = a.teams.reduce((acc, t) => acc + t.wins, 0);
       const bWins = b.teams.reduce((acc, t) => acc + t.wins, 0);
       return bWins - aWins;
     });
 
-    // Actualizar rangos
     for (let i = 0; i < sorted.length; i++) {
       const newRank = i + 1;
       await this.prisma.participant.update({
@@ -118,5 +112,62 @@ export class RankingService {
       include: { participant: true },
       orderBy: { snapshotAt: 'asc' },
     });
+  }
+
+  async rebuildHistory(tournamentId: string): Promise<void> {
+    // Borrar historial existente
+    await this.prisma.rankingHistory.deleteMany({ where: { tournamentId } });
+
+    // Obtener todos los resultados del torneo en orden cronológico
+    const results = await this.prisma.result.findMany({
+      where: { match: { tournamentId } },
+      include: { participantScores: true },
+      orderBy: { recordedAt: 'asc' },
+    });
+
+    if (results.length === 0) {
+      // Sin resultados — resetear prevRank = currentRank para tendencia 'same'
+      const participants = await this.prisma.participant.findMany({
+        where: { tournamentId },
+      });
+      for (const p of participants) {
+        await this.prisma.participant.update({
+          where: { id: p.id },
+          data: { prevRank: p.currentRank },
+        });
+      }
+      return;
+    }
+
+    // Acumular puntos resultado por resultado y guardar snapshot
+    const pointsMap: Record<string, number> = {};
+
+    for (const result of results) {
+      for (const score of result.participantScores) {
+        pointsMap[score.participantId] = (pointsMap[score.participantId] || 0) + score.pointsEarned;
+      }
+
+      const participants = await this.prisma.participant.findMany({
+        where: { tournamentId },
+        include: { teams: true },
+      });
+
+      const sorted = [...participants].sort((a, b) => {
+        const apts = pointsMap[a.id] || 0;
+        const bpts = pointsMap[b.id] || 0;
+        return bpts - apts;
+      });
+
+      const snapshots = sorted.map((p, idx) => ({
+        tournamentId,
+        participantId: p.id,
+        rank: idx + 1,
+        totalPoints: pointsMap[p.id] || 0,
+        aliveTeams: p.teams.filter(t => t.status === 'ACTIVE').length,
+        snapshotAt: result.recordedAt,
+      }));
+
+      await this.prisma.rankingHistory.createMany({ data: snapshots });
+    }
   }
 }

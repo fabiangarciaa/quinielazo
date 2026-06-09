@@ -99,6 +99,7 @@ export const matchesApi = {
   delete: (id: string) => api.delete(`/matches/${id}`),
   recordResult: (matchId: string, data: any) => api.post(`/matches/${matchId}/result`, data),
   correctResult: (matchId: string, data: any) => api.post(`/matches/${matchId}/correct`, data),
+  deleteResult: (matchId: string) => api.delete(`/matches/${matchId}/result`),
 };
 
 export const rankingApi = {

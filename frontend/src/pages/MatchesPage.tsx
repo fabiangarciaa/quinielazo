@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { matchesApi, phasesApi, teamsApi, participantsApi } from '../lib/api';
 import { useAuthStore } from '../store/auth.store';
 import toast from 'react-hot-toast';
-import { Plus, Calendar, CheckCircle2, Clock, Edit3, RefreshCw, Wand2, Trash2, ChevronDown, ChevronUp, Filter } from 'lucide-react';
+import { Plus, Calendar, CheckCircle2, Clock, Edit3, RefreshCw, Wand2, Trash2, ChevronDown, ChevronUp, Filter, List, CalendarDays } from 'lucide-react';
 import clsx from 'clsx';
 
 export function MatchesPage() {
@@ -19,7 +19,7 @@ export function MatchesPage() {
   const [filterPhase, setFilterPhase] = useState('');
   const [teamsPerGroup, setTeamsPerGroup] = useState(4);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-  // Filtro por participante: 'all', 'mine', o un participantId específico
+  const [viewMode, setViewMode] = useState<'groups' | 'date'>('groups');
   const [participantFilter, setParticipantFilter] = useState<string>(isAdmin ? 'all' : 'mine');
   const [showParticipantPicker, setShowParticipantPicker] = useState(false);
   const [selectedParticipants, setSelectedParticipants] = useState<Set<string>>(new Set());
@@ -51,22 +51,18 @@ export function MatchesPage() {
     enabled: !!tournamentId,
   });
 
-  // Detectar si el usuario logueado es participante de este torneo
   const myUserId = (user as any)?.id || (user as any)?.sub;
   const myParticipant = participants.find((p: any) =>
-  p.user?.id && myUserId && p.user.id === myUserId
+    p.user?.id && myUserId && p.user.id === myUserId
   );
 
-  // Equipos del usuario actual
   const myTeamIds = new Set(
-  !isAdmin && myParticipant ? myParticipant.teams?.map((t: any) => t.id) || [] : []
+    !isAdmin && myParticipant ? myParticipant.teams?.map((t: any) => t.id) || [] : []
   );
 
-  // Equipos de participantes seleccionados (para admin)
   const getFilteredTeamIds = () => {
-    if (participantFilter === 'all') return null; // null = sin filtro
+    if (participantFilter === 'all') return null;
     if (participantFilter === 'mine') return myTeamIds;
-    // Participantes específicos seleccionados por admin
     if (selectedParticipants.size > 0) {
       const ids = new Set<string>();
       participants
@@ -79,27 +75,35 @@ export function MatchesPage() {
 
   const filteredTeamIds = getFilteredTeamIds();
 
-  // Filtrar partidos según los equipos seleccionados
   const matches = filteredTeamIds
     ? allMatches.filter((m: any) =>
         filteredTeamIds.has(m.homeTeamId) || filteredTeamIds.has(m.awayTeamId)
       )
     : allMatches;
 
-    // Fases donde NO hay penales ni "equipo que avanza" (todos contra todos)
   const ROUND_ROBIN_PHASES = ['GROUP_STAGE', 'REGULAR_SEASON'];
 
-  // Determinar si el partido actual es de fase eliminatoria (no grupos)
   const isEliminationPhase = (match: any) => {
-  const phaseType = match.phase?.type;
-  // Si no tiene tipo definido, asumir eliminatoria por seguridad
-  if (!phaseType) return true;
-  // Es eliminatoria si NO es una fase de todos contra todos
-  return !ROUND_ROBIN_PHASES.includes(phaseType);
-};
+    const phaseType = match.phase?.type;
+    if (!phaseType) return true;
+    return !ROUND_ROBIN_PHASES.includes(phaseType);
+  };
 
   const createMatchMut = useMutation({
-    mutationFn: (d: any) => matchesApi.create({ ...d, tournamentId }),
+    mutationFn: (d: any) => {
+      // Auto-detectar grupo para fase de grupos
+      const selectedPhase = phases.find((ph: any) => ph.id === d.phaseId);
+      let notes = d.notes || '';
+      if (selectedPhase?.type === 'GROUP_STAGE' && !notes) {
+        const homeTeam = teams.find((t: any) => t.id === d.homeTeamId);
+        const awayTeam = teams.find((t: any) => t.id === d.awayTeamId);
+        const homeGroup = homeTeam?.phaseReached?.startsWith('Grupo') ? homeTeam.phaseReached : null;
+        const awayGroup = awayTeam?.phaseReached?.startsWith('Grupo') ? awayTeam.phaseReached : null;
+        const group = homeGroup || awayGroup;
+        if (group) notes = `${group} — Manual`;
+      }
+      return matchesApi.create({ ...d, tournamentId, notes });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['matches', tournamentId] });
       setShowMatchForm(false);
@@ -157,6 +161,17 @@ export function MatchesPage() {
     },
   });
 
+  const deleteResultMut = useMutation({
+    mutationFn: (matchId: string) => matchesApi.deleteResult(matchId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['matches', tournamentId] });
+      qc.invalidateQueries({ queryKey: ['ranking', tournamentId] });
+      setShowResultForm(null);
+      toast.success('Resultado eliminado');
+    },
+    onError: () => toast.error('Error al eliminar resultado'),
+  });
+
   const openResult = (match: any) => {
     setShowResultForm(match);
     setResultForm({
@@ -168,29 +183,27 @@ export function MatchesPage() {
   };
 
   const submitResult = (e: React.FormEvent) => {
-  e.preventDefault();
-  const homeGoals = +resultForm.homeGoals;
-  const awayGoals = +resultForm.awayGoals;
+    e.preventDefault();
+    const homeGoals = +resultForm.homeGoals;
+    const awayGoals = +resultForm.awayGoals;
 
-  // Auto-detectar ganador si no son penales
-  let advancingTeamId = resultForm.advancingTeamId;
-  if (isEliminationPhase(showResultForm) && !resultForm.hadPenalties) {
-    if (homeGoals > awayGoals) advancingTeamId = showResultForm.homeTeamId;
-    else if (awayGoals > homeGoals) advancingTeamId = showResultForm.awayTeamId;
-  }
+    let advancingTeamId = resultForm.advancingTeamId;
+    if (isEliminationPhase(showResultForm) && !resultForm.hadPenalties) {
+      if (homeGoals > awayGoals) advancingTeamId = showResultForm.homeTeamId;
+      else if (awayGoals > homeGoals) advancingTeamId = showResultForm.awayTeamId;
+    }
 
-  // Validar que en penales se seleccione el equipo que avanza
-  if (isEliminationPhase(showResultForm) && resultForm.hadPenalties && !advancingTeamId) {
-    toast.error('Selecciona el equipo que avanza en penales');
-    return;
-  }
+    if (isEliminationPhase(showResultForm) && resultForm.hadPenalties && !advancingTeamId) {
+      toast.error('Selecciona el equipo que avanza en penales');
+      return;
+    }
 
-  const payload = { ...resultForm, homeGoals, awayGoals, advancingTeamId };
-  if (showResultForm.result) {
-    correctResultMut.mutate({ matchId: showResultForm.id, data: payload });
-  } else {
-    recordResultMut.mutate({ matchId: showResultForm.id, data: payload });
-  }
+    const payload = { ...resultForm, homeGoals, awayGoals, advancingTeamId };
+    if (showResultForm.result) {
+      correctResultMut.mutate({ matchId: showResultForm.id, data: payload });
+    } else {
+      recordResultMut.mutate({ matchId: showResultForm.id, data: payload });
+    }
   };
 
   const toggleGroup = (key: string) => {
@@ -210,7 +223,6 @@ export function MatchesPage() {
     setParticipantFilter('custom');
   };
 
-  // Agrupar partidos
   const grouped = matches.reduce((acc: any, m: any) => {
     const phase = m.phase?.name || 'Sin fase';
     const group = m.notes?.split('—')[0]?.trim() || 'Sin grupo';
@@ -223,8 +235,6 @@ export function MatchesPage() {
   const finished = matches.filter((m: any) => m.status === 'FINISHED').length;
   const pending = matches.length - finished;
   const activePhase = phases.find((p: any) => p.isActive);
-
-  // Highlight equipos propios
   const isMyTeam = (teamId: string) => myTeamIds.has(teamId);
 
   return (
@@ -239,6 +249,18 @@ export function MatchesPage() {
         </div>
         {isAdmin && (
           <div className="flex gap-2 flex-wrap">
+            <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+              <button onClick={() => setViewMode('groups')}
+                className={clsx('flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors',
+                  viewMode === 'groups' ? 'bg-gray-800 text-white' : 'bg-white text-gray-600 hover:bg-gray-50')}>
+                <List size={15} /> Por grupos
+              </button>
+              <button onClick={() => setViewMode('date')}
+                className={clsx('flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors',
+                  viewMode === 'date' ? 'bg-gray-800 text-white' : 'bg-white text-gray-600 hover:bg-gray-50')}>
+                <CalendarDays size={15} /> Por fecha
+              </button>
+            </div>
             <button onClick={() => setShowGenModal(true)}
               className="flex items-center gap-2 bg-purple-500 hover:bg-purple-600 text-white font-medium px-4 py-2 rounded-lg text-sm">
               <Wand2 size={15} /> Generar calendario
@@ -256,13 +278,11 @@ export function MatchesPage() {
         <Filter size={15} className="text-gray-400 shrink-0" />
         <span className="text-sm text-gray-500 shrink-0">Ver partidos de:</span>
         <div className="flex gap-2 flex-wrap flex-1">
-      {/* Botón "Todos" — visible para todos */}
-        <button onClick={() => { setParticipantFilter('all'); setSelectedParticipants(new Set()); }}
-          className={clsx('px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
-          participantFilter === 'all' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50')}>
-          Todos
-        </button>
-          {/* Botón "Mis equipos" */}
+          <button onClick={() => { setParticipantFilter('all'); setSelectedParticipants(new Set()); }}
+            className={clsx('px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
+              participantFilter === 'all' ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50')}>
+            Todos
+          </button>
           {myParticipant && (
             <button onClick={() => { setParticipantFilter('mine'); setSelectedParticipants(new Set()); }}
               className={clsx('px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
@@ -270,10 +290,8 @@ export function MatchesPage() {
               Mis equipos
             </button>
           )}
-          {/* Botones por participante — solo admin */}
           {isAdmin && participants.map((p: any) => (
-            <button key={p.id}
-              onClick={() => toggleParticipant(p.id)}
+            <button key={p.id} onClick={() => toggleParticipant(p.id)}
               className={clsx('px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors',
                 selectedParticipants.has(p.id) ? 'bg-blue-500 text-white border-blue-500' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50')}>
               {p.alias || p.name}
@@ -314,7 +332,7 @@ export function MatchesPage() {
         </div>
       )}
 
-      {/* Cerrar fase — cuando todos los partidos están finalizados */}
+      {/* Cerrar fase */}
       {isAdmin && activePhase && allMatches.filter((m: any) => m.phase?.id === activePhase.id && m.status === 'SCHEDULED').length === 0 && allMatches.filter((m: any) => m.phase?.id === activePhase.id).length > 0 && (
         <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center justify-between">
           <p className="text-sm text-green-700">
@@ -341,7 +359,31 @@ export function MatchesPage() {
       {/* Lista de partidos */}
       {isLoading ? <p className="text-center text-gray-400 py-8">Cargando...</p> : (
         <div className="space-y-3">
-          {Object.entries(grouped).map(([key, groupData]: any) => {
+
+          {/* Vista por fecha */}
+          {viewMode === 'date' && (
+            <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+              <div className="divide-y divide-gray-50">
+                {[...matches]
+                  .sort((a: any, b: any) => {
+                    if (!a.matchDate) return 1;
+                    if (!b.matchDate) return -1;
+                    return new Date(a.matchDate).getTime() - new Date(b.matchDate).getTime();
+                  })
+                  .map((match: any) => (
+                    <MatchRow key={match.id} match={match}
+                      onRecord={isAdmin ? () => openResult(match) : undefined}
+                      onDelete={isAdmin ? () => { if (confirm(`¿Eliminar partido ${match.homeTeam?.name} vs ${match.awayTeam?.name}?`)) deleteMatchMut.mutate(match.id); } : undefined}
+                      highlightHome={isMyTeam(match.homeTeamId)}
+                      highlightAway={isMyTeam(match.awayTeamId)}
+                      showDate />
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* Vista por grupos */}
+          {viewMode === 'groups' && Object.entries(grouped).map(([key, groupData]: any) => {
             const isCollapsed = collapsedGroups.has(key);
             const groupFinished = groupData.matches.filter((m: any) => m.status === 'FINISHED').length;
             const groupTotal = groupData.matches.length;
@@ -374,6 +416,7 @@ export function MatchesPage() {
               </div>
             );
           })}
+
           {matches.length === 0 && (
             <div className="text-center py-16 text-gray-400">
               <Calendar size={48} className="mx-auto mb-3 opacity-20" />
@@ -429,46 +472,40 @@ export function MatchesPage() {
             <h2 className="text-lg font-bold mb-4">Nuevo partido</h2>
             <form onSubmit={e => { e.preventDefault(); createMatchMut.mutate(matchForm); }} className="space-y-3">
               <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fase *</label>
-                  <select value={matchForm.phaseId} onChange={e => setMatchForm(f => ({ ...f, phaseId: e.target.value }))} required
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fase *</label>
+                <select value={matchForm.phaseId} onChange={e => setMatchForm(f => ({ ...f, phaseId: e.target.value }))} required
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
+                  <option value="">Seleccionar fase...</option>
+                  {phases.filter((ph: any) => ph.isActive).map((ph: any) => <option key={ph.id} value={ph.id}>{ph.name}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Local *</label>
+                  <select value={matchForm.homeTeamId} onChange={e => setMatchForm(f => ({ ...f, homeTeamId: e.target.value }))} required
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
-                    <option value="">Seleccionar fase...</option>
-                    {phases
-                      .filter((ph: any) => ph.isActive)
-                      .map((ph: any) => <option key={ph.id} value={ph.id}>{ph.name}</option>)}
+                    <option value="">Seleccionar...</option>
+                    {teams.filter((t: any) => {
+                      const selectedPhase = phases.find((ph: any) => ph.id === matchForm.phaseId);
+                      if (selectedPhase?.type === 'THIRD_PLACE') return true;
+                      return t.status === 'ACTIVE';
+                    }).map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Local *</label>
-                    <select value={matchForm.homeTeamId} onChange={e => setMatchForm(f => ({ ...f, homeTeamId: e.target.value }))} required
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
-                      <option value="">Seleccionar...</option>
-                      {teams
-                        .filter((t: any) => {
-                          const selectedPhase = phases.find((ph: any) => ph.id === matchForm.phaseId);
-                          if (selectedPhase?.type === 'THIRD_PLACE') return true;
-                          return t.status === 'ACTIVE';
-                        })
-                        .map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Visitante *</label>
-                    <select value={matchForm.awayTeamId} onChange={e => setMatchForm(f => ({ ...f, awayTeamId: e.target.value }))} required
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
-                      <option value="">Seleccionar...</option>
-                      {teams
-                        .filter((t: any) => {
-                          if (t.id === matchForm.homeTeamId) return false;
-                          const selectedPhase = phases.find((ph: any) => ph.id === matchForm.phaseId);
-                          if (selectedPhase?.type === 'THIRD_PLACE') return true;
-                          return t.status === 'ACTIVE';
-                        })
-                        .map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Visitante *</label>
+                  <select value={matchForm.awayTeamId} onChange={e => setMatchForm(f => ({ ...f, awayTeamId: e.target.value }))} required
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
+                    <option value="">Seleccionar...</option>
+                    {teams.filter((t: any) => {
+                      if (t.id === matchForm.homeTeamId) return false;
+                      const selectedPhase = phases.find((ph: any) => ph.id === matchForm.phaseId);
+                      if (selectedPhase?.type === 'THIRD_PLACE') return true;
+                      return t.status === 'ACTIVE';
+                    }).map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
                 </div>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fecha y hora</label>
                 <input type="datetime-local" value={matchForm.matchDate} onChange={e => setMatchForm(f => ({ ...f, matchDate: e.target.value }))}
@@ -493,9 +530,7 @@ export function MatchesPage() {
               {showResultForm.result ? <RefreshCw size={18} className="text-orange-500" /> : <CheckCircle2 size={18} className="text-green-500" />}
               <h2 className="text-lg font-bold">{showResultForm.result ? 'Corregir resultado' : 'Registrar resultado'}</h2>
             </div>
-            {showResultForm.notes && (
-              <p className="text-xs text-gray-400 mb-3">{showResultForm.notes}</p>
-            )}
+            {showResultForm.notes && <p className="text-xs text-gray-400 mb-3">{showResultForm.notes}</p>}
             <p className="text-center text-gray-700 font-semibold mb-4">
               {showResultForm.homeTeam?.name} <span className="text-gray-300 font-normal mx-2">vs</span> {showResultForm.awayTeam?.name}
             </p>
@@ -516,7 +551,6 @@ export function MatchesPage() {
                 </div>
               </div>
 
-              {/* Penales — SOLO en fases eliminatorias */}
               {isEliminationPhase(showResultForm) && (
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input type="checkbox" checked={resultForm.hadPenalties}
@@ -526,34 +560,40 @@ export function MatchesPage() {
                 </label>
               )}
 
-              {/* Equipo que avanza — solo en penales */}
-            {isEliminationPhase(showResultForm) && resultForm.hadPenalties && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Equipo que avanza (penales)</label>
-                <select value={resultForm.advancingTeamId}
-                  onChange={e => setResultForm(f => ({ ...f, advancingTeamId: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
-                  <option value="">Seleccionar...</option>
-                  <option value={showResultForm.homeTeamId}>{showResultForm.homeTeam?.name}</option>
-                  <option value={showResultForm.awayTeamId}>{showResultForm.awayTeam?.name}</option>
-                </select>
-              </div>
-            )}
+              {isEliminationPhase(showResultForm) && resultForm.hadPenalties && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Equipo que avanza (penales)</label>
+                  <select value={resultForm.advancingTeamId}
+                    onChange={e => setResultForm(f => ({ ...f, advancingTeamId: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
+                    <option value="">Seleccionar...</option>
+                    <option value={showResultForm.homeTeamId}>{showResultForm.homeTeam?.name}</option>
+                    <option value={showResultForm.awayTeamId}>{showResultForm.awayTeam?.name}</option>
+                  </select>
+                </div>
+              )}
 
-              {/* Preview de bonificaciones */}
               {(+resultForm.homeGoals > 0 || +resultForm.awayGoals > 0) && (
                 <div className="bg-gray-50 rounded-xl p-3 text-xs text-gray-500 space-y-1">
                   {Math.abs(+resultForm.homeGoals - +resultForm.awayGoals) >= 3 && (
-                    <p className="text-green-600 font-medium">✓ Goleada por 3+ goles → +2 pts extra</p>
+                    <p className="text-green-600 font-medium">✓ Goleada por 3+ goles → +4 pts extra</p>
                   )}
-                  {+resultForm.awayGoals === 0 && <p className="text-blue-600">✓ Portería en cero ({showResultForm.homeTeam?.name}) → +1 pt</p>}
-                  {+resultForm.homeGoals === 0 && <p className="text-blue-600">✓ Portería en cero ({showResultForm.awayTeam?.name}) → +1 pt</p>}
+                  {+resultForm.awayGoals === 0 && <p className="text-blue-600">✓ Portería en cero ({showResultForm.homeTeam?.name}) → +3 pts</p>}
+                  {+resultForm.homeGoals === 0 && <p className="text-blue-600">✓ Portería en cero ({showResultForm.awayTeam?.name}) → +3 pts</p>}
                 </div>
               )}
 
               <div className="flex gap-3 pt-1">
                 <button type="button" onClick={() => setShowResultForm(null)}
                   className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm">Cancelar</button>
+                {showResultForm.result && (
+                  <button type="button"
+                    onClick={() => { if (confirm('¿Eliminar este resultado? Se borrarán los puntos generados.')) deleteResultMut.mutate(showResultForm.id); }}
+                    disabled={deleteResultMut.isPending}
+                    className="flex items-center gap-1.5 border border-red-300 text-red-500 hover:bg-red-50 px-3 py-2 rounded-lg text-sm disabled:opacity-60">
+                    <Trash2 size={13} /> Borrar
+                  </button>
+                )}
                 <button type="submit" disabled={recordResultMut.isPending || correctResultMut.isPending}
                   className={clsx('flex-1 text-white py-2 rounded-lg text-sm font-medium disabled:opacity-60',
                     showResultForm.result ? 'bg-orange-500 hover:bg-orange-600' : 'bg-green-500 hover:bg-green-600')}>
@@ -568,12 +608,13 @@ export function MatchesPage() {
   );
 }
 
-function MatchRow({ match, onRecord, onDelete, highlightHome, highlightAway }: {
+function MatchRow({ match, onRecord, onDelete, highlightHome, highlightAway, showDate }: {
   match: any;
   onRecord?: () => void;
   onDelete?: () => void;
   highlightHome?: boolean;
   highlightAway?: boolean;
+  showDate?: boolean;
 }) {
   const finished = match.status === 'FINISHED';
   return (
@@ -584,8 +625,7 @@ function MatchRow({ match, onRecord, onDelete, highlightHome, highlightAway }: {
       <div className="flex-1 grid grid-cols-3 items-center gap-1 md:gap-2 min-w-0">
         <div className="text-right min-w-0">
           <p className={clsx('font-medium text-sm truncate', highlightHome ? 'text-amber-600 font-bold' : 'text-gray-800')}>
-            {match.homeTeam?.name}
-            {highlightHome && ' ⭐'}
+            {match.homeTeam?.name}{highlightHome && ' ⭐'}
           </p>
           {match.homeTeam?.participant && (
             <p className="text-xs text-gray-400 truncate">{match.homeTeam.participant.alias || match.homeTeam.participant.name}</p>
@@ -599,17 +639,18 @@ function MatchRow({ match, onRecord, onDelete, highlightHome, highlightAway }: {
         </div>
         <div className="text-left min-w-0">
           <p className={clsx('font-medium text-sm truncate', highlightAway ? 'text-amber-600 font-bold' : 'text-gray-800')}>
-            {highlightAway && '⭐ '}
-            {match.awayTeam?.name}
+            {highlightAway && '⭐ '}{match.awayTeam?.name}
           </p>
           {match.awayTeam?.participant && (
             <p className="text-xs text-gray-400 truncate">{match.awayTeam.participant.alias || match.awayTeam.participant.name}</p>
           )}
         </div>
       </div>
-      {match.matchDate && (
+      {(match.matchDate || showDate) && (
         <p className="text-xs text-gray-400 shrink-0 hidden md:block">
-          {new Date(match.matchDate).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+          {match.matchDate
+            ? new Date(match.matchDate).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+            : '—'}
         </p>
       )}
       {onRecord && (

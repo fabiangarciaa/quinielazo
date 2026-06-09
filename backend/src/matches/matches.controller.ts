@@ -16,4 +16,5 @@ export class MatchesController {
   @Delete(':id') delete(@Param('id') id: string) { return this.svc.delete(id); }
   @Post(':id/result') recordResult(@Param('id') id: string, @Body() body: any) { return this.svc.recordResult(id, body); }
   @Post(':id/correct') correctResult(@Param('id') id: string, @Body() body: any) { return this.svc.correctResult(id, body); }
+  @Delete(':id/result') deleteResult(@Param('id') id: string) { return this.svc.deleteResult(id); }
 }
