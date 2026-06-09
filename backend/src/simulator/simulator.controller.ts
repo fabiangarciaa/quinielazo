@@ -9,4 +9,12 @@ export class SimulatorController {
   @Post(':tournamentId/team-win') teamWin(@Param('tournamentId') tid: string, @Body() body:{teamId:string}) {
     return this.svc.simulateTeamWin(tid, body.teamId);
   }
+  @Post(':tournamentId/match') simulateMatch(
+    @Param('tournamentId') tid: string,
+    @Body() body: { matchId: string; homeGoals: number; awayGoals: number; advancingTeamId?: string }
+    ) {
+    return this.svc.simulateMatch(tid, body.matchId, body.homeGoals, body.awayGoals, body.advancingTeamId);
+  }
+
+
 }

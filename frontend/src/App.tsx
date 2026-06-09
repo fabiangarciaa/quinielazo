@@ -18,6 +18,7 @@ import { GroupsPage } from './pages/GroupsPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { RulesPage } from './pages/RulesPage';
 import { PointsPage } from './pages/PointsPage';
+import { UsersPage } from './pages/UsersPage';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false } },
@@ -52,6 +53,7 @@ export default function App() {
             <Route path="profile" element={<ProfilePage />} />
             <Route path="tournaments/:id/rules" element={<RulesPage />} />
             <Route path="tournaments/:id/points" element={<PointsPage />} />
+            <Route path="users" element={<UsersPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

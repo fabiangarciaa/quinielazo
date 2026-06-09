@@ -111,6 +111,8 @@ export const simulatorApi = {
   simulate: (tournamentId: string) => api.get(`/simulator/${tournamentId}`),
   simulateTeamWin: (tournamentId: string, teamId: string) =>
     api.post(`/simulator/${tournamentId}/team-win`, { teamId }),
+  simulateMatch: (tournamentId: string, matchId: string, homeGoals: number, awayGoals: number, advancingTeamId?: string) =>
+    api.post(`/simulator/${tournamentId}/match`, { matchId, homeGoals, awayGoals, advancingTeamId }),
 };
 
 export const exportApi = {
@@ -124,8 +126,21 @@ export const resultsApi = {
 };
 
 export const usersApi = {
+  getAll: () => api.get('/users'),
   getOne: (id: string) => api.get(`/users/${id}`),
-  assignUsername: (id: string, username: string) => api.patch(`/users/${id}/username`, { username }),
-  updateProfile: (id: string, data: { name?: string; password?: string }) => api.patch(`/users/${id}/profile`, data),
-  updateAlias: (id: string, participantId: string, alias: string) => api.patch(`/users/${id}/alias`, { participantId, alias }),
+  getTournaments: (id: string) => api.get(`/users/${id}/tournaments`),
+  adminUpdate: (id: string, data: { name?: string; email?: string; username?: string }) =>
+    api.patch(`/users/${id}/admin`, data),
+  adminResetPassword: (id: string, password: string) =>
+    api.patch(`/users/${id}/reset-password`, { password }),
+  addToTournament: (id: string, tournamentId: string, name: string) =>
+    api.post(`/users/${id}/tournaments`, { tournamentId, name }),
+  removeFromTournament: (participantId: string) =>
+    api.delete(`/users/participants/${participantId}`),
+  assignUsername: (id: string, username: string) =>
+    api.patch(`/users/${id}/username`, { username }),
+  updateProfile: (id: string, data: { name?: string; password?: string }) =>
+    api.patch(`/users/${id}/profile`, data),
+  updateAlias: (id: string, participantId: string, alias: string) =>
+    api.patch(`/users/${id}/alias`, { participantId, alias }),
 };

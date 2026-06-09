@@ -106,6 +106,17 @@ export function Layout() {
           </NavLink>
         )}
 
+        {isAdmin && (
+          <NavLink to="/users" onClick={() => setSidebarOpen(false)}
+            className={({ isActive }) => clsx(
+              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors',
+              isActive ? 'bg-amber-500 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+            )}>
+            <Users size={18} className="shrink-0" />
+            <span>Usuarios</span>
+          </NavLink>
+        )}
+
         {/* Selector torneo admin */}
         {isAdmin && tournaments?.length > 0 && (
           <div className="mt-4 px-1">
@@ -119,11 +130,24 @@ export function Layout() {
           </div>
         )}
 
-        {/* Nombre torneo usuario */}
-        {!isAdmin && activeTournament && (
-          <div className="mt-4 px-3">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Torneo</p>
-            <p className="text-sm text-white font-medium truncate">{activeTournament.name}</p>
+        {/* Selector torneo usuario */}
+        {!isAdmin && tournaments?.length > 0 && (
+          <div className="mt-4 px-1">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-2">Torneo</p>
+            {tournaments.length === 1 ? (
+              <p className="text-sm text-white font-medium truncate px-2">{activeTournament?.name}</p>
+            ) : (
+              <select value={activeTournamentId || ''}
+                onChange={e => {
+                  setActiveTournament(e.target.value || null);
+                  if (e.target.value) navigate(`/tournaments/${e.target.value}`);
+                  setSidebarOpen(false);
+                }}
+                className="w-full bg-gray-800 text-white text-sm rounded-lg px-2 py-1.5 border border-gray-700">
+                <option value="">Seleccionar...</option>
+                {tournaments.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            )}
           </div>
         )}
 
