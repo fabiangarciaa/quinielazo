@@ -221,7 +221,11 @@ export class ScoringService {
     }
 
     // Bonificaciones extra
-    if (cleanSheet && (isWinner || isDraw)) {
+    const cleanSheetApplies = phase.type === 'GROUP_STAGE'
+      ? cleanSheet && (isWinner || isDraw)  // En grupos: aplica al ganador y al empate
+      : cleanSheet && isWinner;              // En eliminatorias: solo al ganador
+
+    if (cleanSheetApplies) {
       const pts = getPoints('CLEAN_SHEET');
       if (pts > 0) results.push({ points: pts, reason: `Portería en cero (+${pts})`, eventType: 'CLEAN_SHEET' });
     }

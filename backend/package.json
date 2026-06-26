@@ -14,6 +14,10 @@
   "db:seed:dev": "ts-node prisma/seed.dev.ts",
   "db:add-third-place": "ts-node prisma/add-third-place-rule.ts",
   "db:remove-third-place-ligamx": "ts-node prisma/remove-third-place-ligamx.ts",
+  "db:seed:dis": "ts-node prisma/seed-dis.ts",
+  "db:update-dis": "ts-node prisma/update-dis-participants.ts",
+  "db:add-rules-dis": "ts-node prisma/add-rules-dis.ts",
+  "db:add-flags": "ts-node prisma/add-flags.ts",
   "db:studio": "prisma studio"
 },
   "dependencies": {
